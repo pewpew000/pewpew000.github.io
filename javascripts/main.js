@@ -32,7 +32,7 @@ function pageLoaded(){
     canvaswidth = canvas.getAttribute('width');
     canvasheight = canvas.getAttribute('height');
 
-	numcells = 9;
+	numcells = 11; // Looks better when it's an odd number
     width = canvaswidth / numcells; //assume this is also height
 
     // Drawing lines dividing the canvas
@@ -51,9 +51,8 @@ function pageLoaded(){
 	img_me1 = new Image();
 	img_me1.onload = function() {
         //Main character
-        var main_row_coord = Math.floor(numcells/2)*width;
-        var main_col_coord = Math.floor(numcells/2)*width;
-		drawMainCharacter(main_row_coord, main_col_coord);
+        var main_coord = Math.floor(numcells/2)*width;
+        drawMainCharacter(main_coord, main_coord);
 	}
 	img_me1.src = "images/img_me1.png";
 	
