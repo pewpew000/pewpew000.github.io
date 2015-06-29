@@ -11,10 +11,10 @@ var images = new Array(5); // 5 images total
 
 function drawCharacter(image, r, c, color) {
         context.drawImage(image, r, c, width, width);
-        if(color == "green") {
+        if(color === "green") {
 	        context.fillStyle = "rgba(0,255,0,0.4)";
 	    }
-	    else if (color == "red") {
+	    else if (color === "red") {
 	    	context.fillStyle = "rgba(255,0,0,0.4)";
 	    }
 		//left
@@ -41,18 +41,13 @@ var imageLoader = {
     		imageLoader.loadedImages++;
     		if(imageLoader.loadedImages === imageLoader.totalImages) {
     			imageLoader.loaded = true;
+    			playGame();
     		}
     	}
     }
 }
 
 function playGame() {
-	// Wait until all images are loaded
-    if(imageLoader.loaded == false) {
-    	setTimeout(playGame, 50);
-    	return;
-    }
-
     // Draw characters
     var main_coord = Math.floor(numcells/2)*width;
     drawCharacter(images[0], main_coord, main_coord, "green");
@@ -90,6 +85,4 @@ function pageLoaded(){
 	imageLoader.load("images/img_me2.png");
     imageLoader.load("images/img_enemy1.png");
     imageLoader.load("images/img_enemy2.png");
-
-	playGame();
 }
