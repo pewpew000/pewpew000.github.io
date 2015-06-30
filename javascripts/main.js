@@ -23,7 +23,7 @@ function drawCharacter(image, r, c, color) {
 	    else if (color === "red") {
 	    	context.fillStyle = "rgba(255,0,0,0.4)";
 	    }
-		
+/*		
 		//left
 		context.fillRect(r-width*2, c, width*2, width);
 		//top
@@ -31,7 +31,8 @@ function drawCharacter(image, r, c, color) {
 		//right
 		context.fillRect(r+width, c, width*2, width);
 		//bottom
-		context.fillRect(r, c+width, width, width*2);
+		context.fillRect(r, c+width, width, width*2);		
+*/
 }
 
 var imageLoader = {
@@ -109,10 +110,15 @@ function init(){
 	}
 	
 	// fire action
-	document.onclick = function(event) {
+	document.onmousedown = function(event) {
 		//alert("fire");
+		fire(main_coord_x, main_coord_y, "green");
 	}
 	
+	document.onmouseup=function(){
+		//alert("fire");
+		ceaseFire(main_coord_x, main_coord_y);
+	}
 	//initiate AI enemies to move
 	
 }
@@ -120,7 +126,8 @@ function init(){
 // erease character
 function clearCharacter(image, r, c) {
     context.clearRect( r, c, width, width);
-     
+ 
+/* 
 	//left
 	context.clearRect(r-width*2, c, width*2, width);
 	//top
@@ -129,7 +136,7 @@ function clearCharacter(image, r, c) {
 	context.clearRect(r+width, c, width*2, width);
 	//bottom
 	context.clearRect(r, c+width, width, width*2);
-	
+*/	
 	// redraw the erased lines(messy)
 	/*
 		context.beginPath();
@@ -169,10 +176,36 @@ function move(image, r, c, color, direction) {
 	drawCharacter(image, main_coord_x, main_coord_y, "green");
 }
 
-//
-function fire(images, r, c, color){
-
+// draw the fire range
+function fire(r, c, color){
+	if(color === "green") {
+	        context.fillStyle = "rgba(0,255,0,0.4)";
+	} else if (color === "red") {
+	    	context.fillStyle = "rgba(255,0,0,0.4)";
+	}
+		
+	//left
+	context.fillRect(r-width*2, c, width*2, width);
+	//top
+	context.fillRect(r, c-width*2, width, width*2);
+	//right
+	context.fillRect(r+width, c, width*2, width);
+	//bottom
+	context.fillRect(r, c+width, width, width*2);
 }
 
+// erase the fire range
+function ceaseFire(r, c){
+
+	//left
+	context.clearRect(r-width*2, c, width*2, width);
+	//top
+	context.clearRect(r, c-width*2, width, width*2);
+	//right
+	context.clearRect(r+width, c, width*2, width);
+	//bottom
+	context.clearRect(r, c+width, width, width*2);
+	
+}
 
 
