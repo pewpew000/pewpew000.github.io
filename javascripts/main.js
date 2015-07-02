@@ -15,7 +15,8 @@ var draw_context;
 var fire_range = 3;
 var world_states = new Array(2);	// 2 world_states to reserve local and central's world_state. 
 var player_num = 6;
-
+var player_score = 0;
+var dead = [];
 
 function drawCharacter(image, r, c) {
         context.drawImage(image, r, c, width, width);
@@ -135,9 +136,25 @@ function move(image, r, c, player, direction) {
 	drawCharacter(image, main_coord_x+width*world_states[0].player_pos[player].x, main_coord_y+width*world_states[0].player_pos[player].y);
 	drawBackground();
 }
+// judge if killed
+function killed( player, tokill ){
+	if( dead[tokill] || dead[player] ) return false;
+	if( world_states[0].player_pos[tokill].y == world_states[0].player_pos[player].y && Math.abs(world_states[0].player_pos[tokill].x - world_states[player].player_pos[player].x) < fire_range )
+		return true;
+	if( world_states[0].player_pos[tokill].x == world_states[0].player_pos[player].x && Math.abs(world_states[0].player_pos[tokill].y - world_states[player].player_pos[player].y) < fire_range )
+		return true;
+	return false;
+	
+}
 
-// draw the fire range
-function fire(r, c, color){
+// reborn to update state
+function reborn( the_dead ){
+	return function() { dead[the_dead] = 0; alert("score is " + player_score) };
+}
+
+// draw the fire range and calculate points
+function fire(r, c, color, player){
+	// draw fire range
 	if(color === "green") {
 	        context.fillStyle = "rgba(0,255,0,0.4)";
 	} else if (color === "red") {
@@ -152,6 +169,21 @@ function fire(r, c, color){
 	context.fillRect(r+width, c, width*2, width);
 	//bottom
 	context.fillRect(r, c+width, width, width*2);
+	
+	// update world_state
+	
+	var i;
+	for( i = 0; i < player_num; i++ ){
+		
+		if( i == player ) continue;
+		if( killed(player, i) ){
+			player_score++;
+			dead[i] = 1;
+			setTimeout( reborn(i), 3000);
+			//setTimeout( function(){reborn(dead[i]);}, 3000);
+		}
+	}
+	
 }
 
 // erase the fire range
@@ -273,6 +305,10 @@ function init(){
 	world_states[0] = new world_state();
 	world_states[0].init(player_num);
 	world_states[1] = (JSON.parse(JSON.stringify(world_states[0]))); //cloneobject isn't working well :(
+	var i = 0;
+	for( ; i < player_num; i++ ){
+		dead.push(0);
+	}
 
 	// =================== load page ===================== //
 	pageLoaded();
@@ -286,7 +322,7 @@ function init(){
 	
 	// fire action
 	document.onmousedown = function(event) {
-		fire(main_coord_x+width*world_states[0].player_pos[0].x, main_coord_y+width*world_states[0].player_pos[0].y, "green");
+		fire(main_coord_x+width*world_states[0].player_pos[0].x, main_coord_y+width*world_states[0].player_pos[0].y, "green", 0);
 	}
 	
 	document.onmouseup=function(){
