@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<p>This "home made" function, when used on an array, returns true.</p>
+
+<p id="demo"></p>
+
+<script>
+var fruits = ["Banana", "Orange", "Apple", "Mango"];
+
+
+
+document.getElementById("demo").innerHTML = isArray(fruits);
+
+function isArray(myArray) {
+    return myArray.constructor.toString().indexOf("Array") > -1;
+}
+
+/* Data Structures for calculating and judging */
+
+// == player position ==//
+function position(pos_x, pos_y){
+	this.x = pos_x;
+	this.y = pos_y;
+}
+// set new position
+position.prototype.set = function(pos_x, pos_y){
+	this.x = pos_x;
+	this.y = pos_y;
+}
+// #########################
+
+// == player death log == //
+function death_log(){
+	this.death_time  = 0;
+	this.death_times = 0;
+}
+// add death
+death_log.prototype.add_death = function(time){
+	this.death_time = time;
+	this.death_times++;
+}
+// check if has died
+death_log.prototype.have_ever_died = function(){
+	if(this.death_times == 0)
+			return false;
+	return true;
+}
+
+// ##########################
+
+// ==world_state== //
+function world_state(){
+	this.player_num = 0;
+	this.player_pos = [];
+	this.player_logs = [];
+}
+
+// world_state init
+world_state.prototype.init = function(num){
+	this.player_num = num;
+	var i;
+	for( i = 0; i < num; i++ ){
+		this.player_pos.push(new position(Math.floor((Math.random() * 10)) - 5, Math.floor((Math.random() * 10)) - 5)); 
+		this.player_logs.push(new death_log());
+	}
+}
+
+// world_state apply event
+
+// world_state print 
+world_state.prototype.print = function(num){
+	return this.player_pos[num].x;
+}
+// ############################
+var tmp = new world_state(5);
+tmp.init(5);
+document.getElementById("demo").innerHTML = world_state.print(2);
+</script>
+
+</body>
+</html>
