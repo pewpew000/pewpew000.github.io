@@ -149,7 +149,7 @@ function killed( player, tokill ){
 
 // reborn to update state
 function reborn( the_dead ){
-	return function() { dead[the_dead] = 0; alert("score is " + player_score) };
+	return function() { dead[the_dead] = 0 };
 }
 
 // draw the fire range and calculate points
