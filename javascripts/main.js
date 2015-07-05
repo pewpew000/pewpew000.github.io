@@ -17,6 +17,7 @@ var world_states = new Array(2);	// 2 world_states to reserve local and central'
 var player_num = 6;
 var player_score = 0;
 var dead = [];
+var enemies = [];
 
 function drawCharacter(image, r, c) {
         context.drawImage(image, r, c, width, width);
@@ -98,7 +99,7 @@ function clearCharacter(image, r, c) {
     context.clearRect( r, c, width, width);
 }
 
-// move character
+// move character and update data
 function move(image, r, c, player, direction) {
 	
 	// draw New Image
@@ -284,6 +285,72 @@ world_state.prototype.print = function(num){
 	return this.player_pos[num].x;
 }
 
+// ===AI enemy=== //
+function AI_Enemy(AI_num){
+	this.num = AI_num;
+}
+
+AI_Enemy.prototype.start = function(num){
+	setInterval(AI_move(num), 500);
+}
+
+function AI_move( i ){
+	return function(){
+	if( killed(i, 0) ){
+		// kill player
+		fire(main_coord_x+width*world_states[0].player_pos[i].x, main_coord_y+width*world_states[0].player_pos[i].y, "red", i);
+		ceaseFire(main_coord_x+width*world_states[0].player_pos[i].x, main_coord_y+width*world_states[0].player_pos[i].y);
+		alert("killed you");
+	} else { //chase player
+		chase(i, 0);
+	}
+	}
+}
+
+// let enemy chase player
+function chase(chaser, chased){
+	if(dead[chaser]) return;
+	if(world_states[0].player_pos[chaser].x == world_states[0].player_pos[chased].x){
+		if(world_states[0].player_pos[chaser].y > world_states[0].player_pos[chased].y){
+			//world_states[0].player_pos[chaser].y -= 1;
+			move(images[2], main_coord_x + width * world_states[0].player_pos[chaser].x, main_coord_y + width * world_states[0].player_pos[chaser].y, chaser, 87);
+		} else {
+			move(images[2], main_coord_x + width * world_states[0].player_pos[chaser].x, main_coord_y + width * world_states[0].player_pos[chaser].y, chaser, 83);
+		}
+		return;
+	}
+	if(world_states[0].player_pos[chaser].y == world_states[0].player_pos[chased].y){
+		if(world_states[0].player_pos[chaser].x > world_states[0].player_pos[chased].x){
+			//world_states[0].player_pos[chaser].x -= 1;
+			move(images[2], main_coord_x + width * world_states[0].player_pos[chaser].x, main_coord_y + width * world_states[0].player_pos[chaser].y, chaser, 65);
+		} else {
+			//world_states[0].player_pos[chaser].x += 1;
+			move(images[2], main_coord_x + width * world_states[0].player_pos[chaser].x, main_coord_y + width * world_states[0].player_pos[chaser].y, chaser, 68);
+		}
+		return;
+	}
+	switch( Math.floor(Math.random() * (2)) ){
+		case 1:
+			if(world_states[0].player_pos[chaser].x > world_states[0].player_pos[chased].x){
+				//world_states[0].player_pos[chaser].x -= 1;
+				move(images[2], main_coord_x + width * world_states[0].player_pos[chaser].x, main_coord_y + width * world_states[0].player_pos[chaser].y, chaser, 65);
+			} else {
+				//world_states[0].player_pos[chaser].x += 1;
+				move(images[2], main_coord_x + width * world_states[0].player_pos[chaser].x, main_coord_y + width * world_states[0].player_pos[chaser].y, chaser, 68);
+			}
+			return;
+		case 0:
+			if(world_states[0].player_pos[chaser].y > world_states[0].player_pos[chased].y){
+				//world_states[0].player_pos[chaser].y -= 1;
+				move(images[2], main_coord_x + width * world_states[0].player_pos[chaser].x, main_coord_y + width * world_states[0].player_pos[chaser].y, chaser, 87);
+			} else {
+				//world_states[0].player_pos[chaser].y += 1;
+				move(images[2], main_coord_x + width * world_states[0].player_pos[chaser].x, main_coord_y + width * world_states[0].player_pos[chaser].y, chaser, 83);
+			}
+			return;
+	}
+}
+
 // ############################
 function cloneObject(obj) {
     if (obj === null || typeof obj !== 'object') {
@@ -330,6 +397,31 @@ function init(){
 	}
 	
 	// ======= initiate AI enemies to move =============== //
+	// start all AI enemies
+	for( i = 1; i < player_num; i++ ){
+		enemies.push( new AI_Enemy(i) );
+		enemies[i-1].start(i);
+	}
+	/*
+	while(true){
+		for( i = 1; i < player_num; i++ ){
+			if( killed(i, 0) ){
+				// kill player
+				fire(main_coord_x+width*world_states[0].player_pos[i].x, main_coord_y+width*world_states[0].player_pos[i].y, "red", i);
+				ceaseFire(main_coord_x+width*world_states[0].player_pos[i].x, main_coord_y+width*world_states[0].player_pos[i].y);
+				alert("killed you");
+			} else { //chase player
+				chase(i, 0);
+			}
+			
+		}
+	}
+	*/
+	// =========== choose/set speculation level ==========//
+	
+	// ======= initiate timer to start game =========== //
+	
+	// ======= collect useful game data ============   //
 	
 }
 
