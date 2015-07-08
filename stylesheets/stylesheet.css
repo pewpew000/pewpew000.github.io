@@ -97,6 +97,17 @@ header h2 {
   max-width: 100%;
 }
 
+.aside {
+	display: table;
+    line-height:30px;
+    background-color:#eeeeee;
+    height:800px;
+    width:300px;
+    float:left;
+	vertical-align: middle;
+    padding:5px;	      
+}
+
 #downloads {
   margin-bottom: 40px;
 }

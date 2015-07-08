@@ -14,11 +14,40 @@ var main_coord_x, main_coord_y;
 var draw_context;
 var fire_range = 3;
 var world_states = new Array(2);	// 2 world_states to reserve local and central's world_state. 
-var player_num = 10;
+var player_num = 5;
 var player_score = 0;
+var player_death = 0;
 var dead = [];
 var enemies = [];
 
+// Global Variables for experiment
+var rollbacks;
+var latency;
+var action_num;
+
+// Global Variables for countDown
+var play_time = 61;
+
+// === functions for score board === //
+// count down function
+function myCountDown() {
+    if(play_time == 0){
+		//alert("time up");
+		return;
+	}
+	play_time -= 1;
+    document.getElementById("countDown").innerHTML = play_time;
+}
+// update death
+function update_death(){
+	document.getElementById("myDeath").innerHTML = player_death;
+}
+// update score
+function update_score(){
+	document.getElementById("myScore").innerHTML = player_score;
+}
+
+// === functions for drawing === //
 function drawCharacter(image, r, c) {
         context.drawImage(image, r, c, width, width);
 }
@@ -149,12 +178,31 @@ function move(image, r, c, player, direction) {
 // judge if killed
 function killed( player, tokill ){
 	if( dead[tokill] || dead[player] ) return false;
-	if( world_states[0].player_pos[tokill].y == world_states[0].player_pos[player].y && Math.abs(world_states[0].player_pos[tokill].x - world_states[player].player_pos[player].x) < fire_range )
+	if( world_states[0].player_pos[tokill].y == world_states[0].player_pos[player].y && Math.abs(world_states[0].player_pos[tokill].x - world_states[0].player_pos[player].x) < fire_range ){
+		//fire(main_coord_x+width*world_states[0].player_pos[i].x, main_coord_y+width*world_states[0].player_pos[i].y, "red", i);
 		return true;
-	if( world_states[0].player_pos[tokill].x == world_states[0].player_pos[player].x && Math.abs(world_states[0].player_pos[tokill].y - world_states[player].player_pos[player].y) < fire_range )
+	}
+	if( world_states[0].player_pos[tokill].x == world_states[0].player_pos[player].x && Math.abs(world_states[0].player_pos[tokill].y - world_states[0].player_pos[player].y) < fire_range ){
+		//fire(main_coord_x+width*world_states[0].player_pos[i].x, main_coord_y+width*world_states[0].player_pos[i].y, "red", i);
 		return true;
+	}
 	return false;
-	
+}
+
+// judge and kill
+function try_killed( player, tokill ){
+	if( dead[tokill] || dead[player] ) return false;
+	if( world_states[0].player_pos[tokill].y == world_states[0].player_pos[player].y && Math.abs(world_states[0].player_pos[tokill].x - world_states[player].player_pos[player].x) < fire_range ){
+		//fire(main_coord_x+width*world_states[0].player_pos[player].x, main_coord_y+width*world_states[0].player_pos[player].y, "red", player);
+		//alert("killer at x= "+world_states[0].player_pos[player].x+" y = "+world_states[0].player_pos[player].y+" killed at x= "+world_states[0].player_pos[0].x+" y= "+world_states[0].player_pos[0].y);
+		return true;
+	}
+	if( world_states[0].player_pos[tokill].x == world_states[0].player_pos[player].x && Math.abs(world_states[0].player_pos[tokill].y - world_states[player].player_pos[player].y) < fire_range ){
+		//fire(main_coord_x+width*world_states[0].player_pos[player].x, main_coord_y+width*world_states[0].player_pos[player].y, "red", player);
+		//alert("killer at x= "+world_states[0].player_pos[player].x+" y = "+world_states[0].player_pos[player].y+" killed at x= "+world_states[0].player_pos[0].x+" y= "+world_states[0].player_pos[0].y);
+		return true;
+	}
+	return false;
 }
 
 // reborn to update state
@@ -187,10 +235,17 @@ function fire(r, c, color, player){
 		
 		if( i == player ) continue;
 		if( killed(player, i) ){
-			player_score++;
+			//player_score++;
 			dead[i] = 1;
 			setTimeout( reborn(i), 3000);
 			//setTimeout( function(){reborn(dead[i]);}, 3000);
+			if(i == 0){
+				player_death++;
+				update_death();
+			} else if(player == 0){
+				player_score++;
+				update_score();
+			}
 		}
 	}
 	
@@ -305,14 +360,14 @@ AI_Enemy.prototype.start = function(num){
 
 function AI_move( i ){
 	return function(){
-	if( killed(i, 0) ){
-		// kill player
-		fire(main_coord_x+width*world_states[0].player_pos[i].x, main_coord_y+width*world_states[0].player_pos[i].y, "red", i);
-		//ceaseFire(main_coord_x+width*world_states[0].player_pos[i].x, main_coord_y+width*world_states[0].player_pos[i].y);
-		alert("killed you");
-	} else { //chase player
-		chase(i, 0);
-	}
+		if( killed(i, 0) ){
+			// kill player
+			fire(main_coord_x+width*world_states[0].player_pos[i].x, main_coord_y+width*world_states[0].player_pos[i].y, "red", i);
+			//ceaseFire(main_coord_x+width*world_states[0].player_pos[i].x, main_coord_y+width*world_states[0].player_pos[i].y);
+			//alert("killer at x= "+world_states[0].player_pos[i].x+" y = "+world_states[0].player_pos[i].y+" killed at x= "+world_states[0].player_pos[0].x+" y= "+world_states[0].player_pos[0].y);
+		} else { //chase player
+			chase(i, 0);
+		}
 	}
 }
 
@@ -377,7 +432,7 @@ function cloneObject(obj) {
 // ============================================ init function ============================== // 
 function init(){
 
-	// ================== init world_state =============== //
+	// ================== init world_state data =============== //
 	world_states[0] = new world_state();
 	world_states[0].init(player_num);
 	world_states[1] = (JSON.parse(JSON.stringify(world_states[0]))); //cloneobject isn't working well :(
@@ -385,7 +440,8 @@ function init(){
 	for( ; i < player_num; i++ ){
 		dead.push(0);
 	}
-
+	
+	
 	// =================== load page ===================== //
 	pageLoaded();
 	
@@ -411,24 +467,13 @@ function init(){
 		enemies.push( new AI_Enemy(i) );
 		enemies[i-1].start(i);
 	}
-	/*
-	while(true){
-		for( i = 1; i < player_num; i++ ){
-			if( killed(i, 0) ){
-				// kill player
-				fire(main_coord_x+width*world_states[0].player_pos[i].x, main_coord_y+width*world_states[0].player_pos[i].y, "red", i);
-				ceaseFire(main_coord_x+width*world_states[0].player_pos[i].x, main_coord_y+width*world_states[0].player_pos[i].y);
-				alert("killed you");
-			} else { //chase player
-				chase(i, 0);
-			}
-			
-		}
-	}
-	*/
 	// =========== choose/set speculation level ==========//
 	
-	// ======= initiate timer to start game =========== //
+	
+	// ================== start timer ===================== //
+	var timeCountDown = setInterval(function(){myCountDown()},1000);
+	update_death();
+	update_score();
 	
 	// ======= collect useful game data ============   //
 	
