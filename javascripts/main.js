@@ -38,7 +38,7 @@ var actions = [];
 // count down function
 function myCountDown() {
     if(play_time == 0){
-		//alert("time up");
+		alert("time up, your grade is "+(player_score-player_death));
 		return;
 	}
 	play_time -= 1;
