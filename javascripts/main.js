@@ -28,6 +28,12 @@ var action_num;
 // Global Variables for countDown
 var play_time = 61;
 
+// Global Variables for speculation
+var speculation_k1;
+var speculation_k2;
+var speculating;
+var actions = [];
+
 // === functions for score board === //
 // count down function
 function myCountDown() {
@@ -48,8 +54,24 @@ function update_score(){
 }
 
 // === functions for drawing === //
+// draw character
 function drawCharacter(image, r, c) {
         context.drawImage(image, r, c, width, width);
+}
+
+// erase character
+function clearCharacter(image, r, c) {
+    context.clearRect( r, c, width, width);
+}
+
+// draw all players
+function drawPlayers(num){
+	var i;
+	for( i = 1; i < player_num; i++ ){
+		if( i == num ) continue;
+		if(!dead[i])
+			context.drawImage(images[2], main_coord_x + width*world_states[0].player_pos[i].x, main_coord_y + width*world_states[0].player_pos[i].y, width, width);
+	}
 }
 
 var imageLoader = {
@@ -121,21 +143,6 @@ function drawBackground(){
 	context.stroke();
 }
 
-/* Writen By Haibo Bian */
-
-function drawPlayers(num){
-	var i;
-	for( i = 1; i < player_num; i++ ){
-		if( i == num ) continue;
-		if(!dead[i])
-			context.drawImage(images[2], main_coord_x + width*world_states[0].player_pos[i].x, main_coord_y + width*world_states[0].player_pos[i].y, width, width);
-	}
-}
-// erease character
-function clearCharacter(image, r, c) {
-    context.clearRect( r, c, width, width);
-}
-
 // move character and update data
 function move(image, r, c, player, direction) {
 	
@@ -175,15 +182,14 @@ function move(image, r, c, player, direction) {
 	drawBackground();
 	drawPlayers(player);
 }
+
 // judge if killed
 function killed( player, tokill ){
 	if( dead[tokill] || dead[player] ) return false;
 	if( world_states[0].player_pos[tokill].y == world_states[0].player_pos[player].y && Math.abs(world_states[0].player_pos[tokill].x - world_states[0].player_pos[player].x) < fire_range ){
-		//fire(main_coord_x+width*world_states[0].player_pos[i].x, main_coord_y+width*world_states[0].player_pos[i].y, "red", i);
 		return true;
 	}
 	if( world_states[0].player_pos[tokill].x == world_states[0].player_pos[player].x && Math.abs(world_states[0].player_pos[tokill].y - world_states[0].player_pos[player].y) < fire_range ){
-		//fire(main_coord_x+width*world_states[0].player_pos[i].x, main_coord_y+width*world_states[0].player_pos[i].y, "red", i);
 		return true;
 	}
 	return false;
@@ -193,13 +199,11 @@ function killed( player, tokill ){
 function try_killed( player, tokill ){
 	if( dead[tokill] || dead[player] ) return false;
 	if( world_states[0].player_pos[tokill].y == world_states[0].player_pos[player].y && Math.abs(world_states[0].player_pos[tokill].x - world_states[player].player_pos[player].x) < fire_range ){
-		//fire(main_coord_x+width*world_states[0].player_pos[player].x, main_coord_y+width*world_states[0].player_pos[player].y, "red", player);
-		//alert("killer at x= "+world_states[0].player_pos[player].x+" y = "+world_states[0].player_pos[player].y+" killed at x= "+world_states[0].player_pos[0].x+" y= "+world_states[0].player_pos[0].y);
+		fire(main_coord_x+width*world_states[0].player_pos[player].x, main_coord_y+width*world_states[0].player_pos[player].y, "red", player);
 		return true;
 	}
 	if( world_states[0].player_pos[tokill].x == world_states[0].player_pos[player].x && Math.abs(world_states[0].player_pos[tokill].y - world_states[player].player_pos[player].y) < fire_range ){
-		//fire(main_coord_x+width*world_states[0].player_pos[player].x, main_coord_y+width*world_states[0].player_pos[player].y, "red", player);
-		//alert("killer at x= "+world_states[0].player_pos[player].x+" y = "+world_states[0].player_pos[player].y+" killed at x= "+world_states[0].player_pos[0].x+" y= "+world_states[0].player_pos[0].y);
+		fire(main_coord_x+width*world_states[0].player_pos[player].x, main_coord_y+width*world_states[0].player_pos[player].y, "red", player);
 		return true;
 	}
 	return false;
@@ -238,7 +242,6 @@ function fire(r, c, color, player){
 			//player_score++;
 			dead[i] = 1;
 			setTimeout( reborn(i), 3000);
-			//setTimeout( function(){reborn(dead[i]);}, 3000);
 			if(i == 0){
 				player_death++;
 				update_death();
@@ -273,13 +276,7 @@ function position(pos_x, pos_y){
 	this.x = pos_x;
 	this.y = pos_y;
 }
-/*
-// copy constructor
-function position(other){
-	this.x = other.x;
-	this.y = other.y;
-}
-*/
+
 // set new position
 position.prototype.set = function(pos_x, pos_y){
 	this.x = pos_x;
@@ -292,13 +289,7 @@ function death_log(){
 	this.death_time  = 0;
 	this.death_times = 0;
 }
-/*
-// copy constructor
-function death_log(other){
-	this.death_time = other.death_time;
-	this.death_time = other.death_times;
-}
-*/
+
 // add death
 death_log.prototype.add_death = function(time){
 	this.death_time = time;
@@ -319,19 +310,7 @@ function world_state(){
 	this.player_pos = [];
 	this.player_logs = [];
 }
-/*
-// copy constructor
-function world_state(other){
-	var i;
-	this.player_num = other.player_num;
-	this.player_pos = [];
-	this.player_logs = [];
-	for( i = 0; i < this.player_num; i++ ){
-		player_pos.push( new position(other.player_pos[i]) );
-		player_logs.push( new death_log() );
-	}
-}
-*/
+
 // world_state init
 world_state.prototype.init = function(num){
 	this.player_num = num;
@@ -429,6 +408,31 @@ function cloneObject(obj) {
     return temp;
 }
 
+// === functions for bounded-eventual consistency models === //
+// to locally apply or block
+function start_speculate( act ){
+	// push to local action array
+	
+	// add latency and push to central array
+	
+	// decide to locally apply or block
+	
+	// update speculating value
+	
+	// calculate and 
+	
+	// this is the example to use array array.splice(indexToRemove, numberToRemove);
+}
+
+// to compare world state with central and redraw if different
+function sync(){
+	//compare world_states
+	
+	//redraw if world_states are different
+	
+}
+
+
 // ============================================ init function ============================== // 
 function init(){
 
@@ -475,7 +479,7 @@ function init(){
 	update_death();
 	update_score();
 	
-	// ======= collect useful game data ============   //
+	// ======= collect useful game data ============ //
 	
 }
 

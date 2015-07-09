@@ -96,8 +96,23 @@ header h2 {
 #container .inner img {
   max-width: 100%;
 }
-
-.aside {
+.myouter{
+	display: table;
+    /*position: absolute;
+    height: 100%;
+    width: 100%;*/
+	line-height:30px;
+    /*background-color:#eeeeee;*/
+    height:500px;
+    width:300px;
+    float:left;
+    padding:5px;
+}
+.mymiddle {
+    display: table-cell;
+    vertical-align: middle;
+}
+/*.myaside {
 	display: table;
     line-height:30px;
     background-color:#eeeeee;
@@ -106,6 +121,12 @@ header h2 {
     float:left;
 	vertical-align: middle;
     padding:5px;	      
+}*/
+
+.myinner {
+    margin-left: auto;
+    margin-right: auto; 
+    width: /*whatever width you want*/;
 }
 
 #downloads {
