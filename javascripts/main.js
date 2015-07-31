@@ -20,10 +20,25 @@ var player_death = 0;
 var dead = [];
 var enemies = [];
 
+// Global variables for background policies
+var player_latency;
+var player_fluct;
+var speculation_deg_0;	// for bonus action
+var speculation_deg_1;	// for fire action
+var speculation_deg_2;	// for move action
+
+
 // Global Variables for experiment
+var p_time = new Date();
 var rollbacks;
 var latency;
+var latency_among;
 var action_num;
+var c_sequencer = [];	// array for central sequencer
+var l_sequencer = [];	// array for local sequencer
+var received_wstates = [];	// array for world states received from central
+var pointer_now;	//pointer to proceed and draw stuff.
+//var myWorker = new Worker("worker.js");
 
 // Global Variables for countDown
 var play_time = 61;
@@ -38,7 +53,7 @@ var actions = [];
 // count down function
 function myCountDown() {
     if(play_time == 0){
-		alert("time up, your grade is "+(player_score-player_death));
+		//alert("time up, your grade is "+(player_score-player_death));
 		return;
 	}
 	play_time -= 1;
@@ -304,6 +319,14 @@ death_log.prototype.have_ever_died = function(){
 
 // ##########################
 
+// === actions === //
+function event(time, player, act){
+	this.time = time;
+	this.player = player;
+	this.action = act;
+}
+
+// ###########################
 // ==world_state== //
 function world_state(){
 	this.player_num = 0;
@@ -342,8 +365,10 @@ function AI_move( i ){
 		if( killed(i, 0) ){
 			// kill player
 			fire(main_coord_x+width*world_states[0].player_pos[i].x, main_coord_y+width*world_states[0].player_pos[i].y, "red", i);
-			//ceaseFire(main_coord_x+width*world_states[0].player_pos[i].x, main_coord_y+width*world_states[0].player_pos[i].y);
-			//alert("killer at x= "+world_states[0].player_pos[i].x+" y = "+world_states[0].player_pos[i].y+" killed at x= "+world_states[0].player_pos[0].x+" y= "+world_states[0].player_pos[0].y);
+			//insert action into local l_sequencer
+			push_to_local(p_time.getTime() + Math.floor(Math.random() * 60) + latency_among, i, 0);
+			//insert action into central s_sequencer
+			push_to_central(p_time.getTime() + Math.floor((Math.random() * 60)) + latency, i, 0);
 		} else { //chase player
 			chase(i, 0);
 		}
@@ -357,8 +382,16 @@ function chase(chaser, chased){
 		if(world_states[0].player_pos[chaser].y > world_states[0].player_pos[chased].y){
 			//world_states[0].player_pos[chaser].y -= 1;
 			move(images[2], main_coord_x + width * world_states[0].player_pos[chaser].x, main_coord_y + width * world_states[0].player_pos[chaser].y, chaser, 87);
+			//insert action into local l_sequencer
+			push_to_local(p_time.getTime() + Math.floor(Math.random() * 60) + latency_among, chaser, 87);
+			//insert action into central s_sequencer
+			push_to_central(p_time.getTime() + Math.floor((Math.random() * 60)) + latency, chaser, 87);
 		} else {
 			move(images[2], main_coord_x + width * world_states[0].player_pos[chaser].x, main_coord_y + width * world_states[0].player_pos[chaser].y, chaser, 83);
+			//insert action into local l_sequencer
+			push_to_local(p_time.getTime() + Math.floor(Math.random() * 60) + latency_among, chaser, 83);
+			//insert action into central s_sequencer
+			push_to_central(p_time.getTime() + Math.floor((Math.random() * 60)) + latency, chaser, 83);
 		}
 		return;
 	}
@@ -366,9 +399,17 @@ function chase(chaser, chased){
 		if(world_states[0].player_pos[chaser].x > world_states[0].player_pos[chased].x){
 			//world_states[0].player_pos[chaser].x -= 1;
 			move(images[2], main_coord_x + width * world_states[0].player_pos[chaser].x, main_coord_y + width * world_states[0].player_pos[chaser].y, chaser, 65);
+			//insert action into local l_sequencer
+			push_to_local(p_time.getTime() + Math.floor(Math.random() * 60) + latency_among, chaser, 65);
+			//insert action into central s_sequencer
+			push_to_central(p_time.getTime() + Math.floor((Math.random() * 60)) + latency, chaser, 65);
 		} else {
 			//world_states[0].player_pos[chaser].x += 1;
 			move(images[2], main_coord_x + width * world_states[0].player_pos[chaser].x, main_coord_y + width * world_states[0].player_pos[chaser].y, chaser, 68);
+			//insert action into local l_sequencer
+			push_to_local(p_time.getTime() + Math.floor(Math.random() * 60) + latency_among, chaser, 68);
+			//insert action into central s_sequencer
+			push_to_central(p_time.getTime() + Math.floor((Math.random() * 60)) + latency, chaser, 68);
 		}
 		return;
 	}
@@ -377,18 +418,34 @@ function chase(chaser, chased){
 			if(world_states[0].player_pos[chaser].x > world_states[0].player_pos[chased].x){
 				//world_states[0].player_pos[chaser].x -= 1;
 				move(images[2], main_coord_x + width * world_states[0].player_pos[chaser].x, main_coord_y + width * world_states[0].player_pos[chaser].y, chaser, 65);
+				//insert action into local l_sequencer
+				push_to_local(p_time.getTime() + Math.floor(Math.random() * 60) + latency_among, chaser, 65);
+				//insert action into central s_sequencer
+				push_to_central(p_time.getTime() + Math.floor((Math.random() * 60)) + latency, chaser, 65);
 			} else {
 				//world_states[0].player_pos[chaser].x += 1;
 				move(images[2], main_coord_x + width * world_states[0].player_pos[chaser].x, main_coord_y + width * world_states[0].player_pos[chaser].y, chaser, 68);
+				//insert action into local l_sequencer
+				push_to_local(p_time.getTime() + Math.floor(Math.random() * 60) + latency_among, chaser, 68);
+				//insert action into central s_sequencer
+				push_to_central(p_time.getTime() + Math.floor((Math.random() * 60)) + latency, chaser, 68);
 			}
 			return;
 		case 0:
 			if(world_states[0].player_pos[chaser].y > world_states[0].player_pos[chased].y){
 				//world_states[0].player_pos[chaser].y -= 1;
 				move(images[2], main_coord_x + width * world_states[0].player_pos[chaser].x, main_coord_y + width * world_states[0].player_pos[chaser].y, chaser, 87);
+				//insert action into local l_sequencer
+				push_to_local(p_time.getTime() + Math.floor(Math.random() * 60) + latency_among, chaser, 87);
+				//insert action into central s_sequencer
+				push_to_central(p_time.getTime() + Math.floor((Math.random() * 60)) + latency, chaser, 87);
 			} else {
 				//world_states[0].player_pos[chaser].y += 1;
 				move(images[2], main_coord_x + width * world_states[0].player_pos[chaser].x, main_coord_y + width * world_states[0].player_pos[chaser].y, chaser, 83);
+				//insert action into local l_sequencer
+				push_to_local(p_time.getTime() + Math.floor(Math.random() * 60) + latency_among, chaser, 83);
+				//insert action into central s_sequencer
+				push_to_central(p_time.getTime() + Math.floor((Math.random() * 60)) + latency, chaser, 83);
 			}
 			return;
 	}
@@ -406,6 +463,24 @@ function cloneObject(obj) {
     }
  
     return temp;
+}
+
+// === functions for different models === //
+// sort function
+function my_sort(a, b){
+	return a.time - b.time;
+}
+
+// insert actions into local l_sequencer
+function push_to_local(time, player, action){
+	l_sequencer.push( new event(time, player, action) );
+	l_sequencer.sort(my_sort);
+}
+
+// insert actions into local l_sequencer
+function push_to_central(time, player, action){
+	c_sequencer.push( new event(time, player, action) );
+	c_sequencer.sort(my_sort);
 }
 
 // === functions for bounded-eventual consistency models === //
@@ -454,11 +529,19 @@ function init(){
 	document.onkeydown = function(event){
 		//alert(event.keyCode);
 		move(images[0], main_coord_x+width*world_states[0].player_pos[0].x, main_coord_y+width*world_states[0].player_pos[0].y, 0, event.keyCode);
+		//insert action into local l_sequencer
+		push_to_local(p_time.getTime(), 0, event.keyCode);
+		//insert action into central s_sequencer
+		push_to_central(p_time.getTime() + Math.floor((Math.random() * 60)) + latency, 0, event.keyCode);
 	}
 	
 	// fire action
 	document.onmousedown = function(event) {
 		fire(main_coord_x+width*world_states[0].player_pos[0].x, main_coord_y+width*world_states[0].player_pos[0].y, "green", 0);
+		//insert action into local l_sequencer
+		push_to_local(p_time.getTime(), 0, event.keyCode);
+		//insert action into central s_sequencer
+		push_to_central(p_time.getTime() + Math.floor((Math.random() * 60)) + latency, 0, event.keyCode);
 	}
 	
 	document.onmouseup=function(){
@@ -471,6 +554,11 @@ function init(){
 		enemies.push( new AI_Enemy(i) );
 		enemies[i-1].start(i);
 	}
+	// =========== initiate Background calculation ==========//
+	/*
+		myWorker is staic for posting actions.
+	*/
+	
 	// =========== choose/set speculation level ==========//
 	
 	
