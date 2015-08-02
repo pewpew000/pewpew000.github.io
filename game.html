@@ -12,45 +12,55 @@
     <link rel="stylesheet" type="text/css" href="stylesheets/bootstrap-theme.min.css">
     <link rel="stylesheet" type="text/css" href="stylesheets/bootstrap.min.css">
 
-    <script src="javascripts/main.js" type="text/javascript" charset="utf-8"></script>
     <script src="javascripts/jquery-1.11.3.min.js" type="text/javascript" charset="utf-8"></script>
+    <script src="javascripts/game.js" type="text/javascript" charset="utf-8"></script>
     <script src="javascripts/bootstrap.min.js" type="text/javascript" charset="utf-8"></script>
     <!--[if lt IE 9]>
     <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
     <![endif]-->
-	<style>
-	table, th, td {
-		border: 2px solid black;
-		border-collapse: collapse;
-	}
-	</style>
-	
+
     <title>Pew Pew 000</title>
   </head>
-
-  <body>
-    <div class="container">
-    <br/><br/><br/  >
+  
+  <body onload="initgame();">
+  <div class="container">
+      <img src="images/soundon.png" id="sound">
+      <img src="images/playstop.png" id="play">
+      <img src="images/question.png" id="question">
     <div id="gamecontainer">
-    
-    <div id="titlescreen">
-     <div class="row"> 
-        <div class="col-md-8">
+    <div class="row">
+ 
+        <div class="col-md-7">
+           <div id="titlescreen">
           <img src="images/title4.png">
-          <img src="images/loading.gif" width="10%" height="10%">
+          <img src="images/loading.gif" width="10%" height="10%" id="loading">
+              </div>
         </div>
-        <div class="col-md-4">
-          <div id="gamemenu">
-           <img src="images/startgame.png" id="startgame">
-           <img src="images/settings.png" id="settings">
-          </div>
+        <div class="col-md-5">
+        <div id="startgame">
+        <img src="images/startgame.png" >
         </div>
+        <div id="birdfront">
+        <img src="images/bird_front.png">
+        </div>
+       </div>
      </div>
-          <canvas width = "1200" height = "660">
+          <canvas width = "1200" height = "660" class="gamelayer">
               Your browser does not support HTML5 Canvas. Please shift to another browser.
           </canvas>
     </div>
-    </div>
+
+    <footer>
+    Music source: http://incompetech.com/music/royalty-free/index.html<br/>
+    Image source: http://www.imagekb.com/2d-game-backgrounds<br/>
+    http://sweetclipart.com<br/>
+    http://sweetclipart.com<br/>
+    http://cliparts.co/cliparts<br/>
+    http://www.misskatecuttables.com/<br/>
+    http://www.clker.com
+    <div>Icons made by <a href="http://www.flaticon.com/authors/freepik" title="Freepik">Freepik</a> from <a href="http://www.flaticon.com" title="Flaticon">www.flaticon.com</a>             is licensed by <a href="http://creativecommons.org/licenses/by/3.0/" title="Creative Commons BY 3.0">CC BY 3.0</a></div>
+    <div>Icons made by <a href="http://www.flaticon.com/authors/daniel-bruce" title="Daniel Bruce">Daniel Bruce</a> from <a href="http://www.flaticon.com" title="Flaticon">www.flaticon.com</a>             is licensed by <a href="http://creativecommons.org/licenses/by/3.0/" title="Creative Commons BY 3.0">CC BY 3.0</a></div>
+    </footer>
     </div>
   </body>
 </html>
