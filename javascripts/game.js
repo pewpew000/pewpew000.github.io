@@ -3,11 +3,6 @@
 //
 
 // Global variables for drawing
-var canvas, context;
-var width;
-var canvaswidth, canvasheight
-var numcells;
-var images = new Array(10); // 10 images total
 
 var imageLoader = {
 	loaded:true,
@@ -18,7 +13,14 @@ var imageLoader = {
     	this.loaded = false;
     	var image = new Image();
     	image.src = url;
-    	images[this.totalImages] = image;
+    	var character = {
+			x: 0,
+			y: 0,
+			width: image.width,
+			height: image.height,
+			image: image
+		}
+    	gameui.images.push(character);
     	this.totalImages++;
 
     	image.onload = function() {
@@ -36,22 +38,34 @@ var imageLoader = {
     }
 }
 
-function playGame() {
 
+var gameui = {
+	context:0,
+	canvas:0,
+	canvaswidth:0,
+	canvasheight:0,
+	images: [],
+
+	init:function() {
+		this.canvas = document.getElementById('gamecanvas');
+		this.context = this.canvas.getContext('2d');
+		this.canvaswidth = this.canvas.getAttribute('width');
+		this.canvasheight = this.canvas.getAttribute('height');
+
+		imageLoader.load("images/elephant.png");
+		imageLoader.load("images/pinkbird.png");
+		imageLoader.load("images/cat.png");
+		imageLoader.load("images/bee.png");
+		imageLoader.load("images/yellowball.png");
+		imageLoader.load("images/greenball.png");
+		imageLoader.load("images/yellowapple.png");
+		imageLoader.load("images/greenapple.png");
+		imageLoader.load("images/explosion.png");
+	}
 }
 
-function pageLoaded(){	
-    // Image loading
-	imageLoader.load("images/pinkbird.png");
-	imageLoader.load("images/bluebird.png");
-    imageLoader.load("images/yellowball.png");
-    imageLoader.load("images/greenball.png");
-    imageLoader.load("images/yellowapple.png");
-    imageLoader.load("images/greenapple.png");
-    imageLoader.load("images/elephant.png");
-    imageLoader.load("images/cat.png");
-    imageLoader.load("images/bee.png");
-    imageLoader.load("images/explosion.png");
+function playGame() {
+	
 }
 
 var startscreen= {
@@ -66,7 +80,7 @@ var startscreen= {
 		$('#startgame').click(function(){
 			$('#startgame').hide();
 			$('#loading').show();
-			pageLoaded();
+			gameui.init();
 		});
 
 		$(function () {
