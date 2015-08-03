@@ -1,5 +1,5 @@
 //
-// main.js
+// game.js
 //
 
 // Global variables for drawing
@@ -13,17 +13,18 @@ var imageLoader = {
     	this.loaded = false;
     	var image = new Image();
     	image.src = url;
-    	var character = {
-			x: 0,
-			y: 0,
-			width: image.width,
-			height: image.height,
-			image: image
-		}
-    	gameui.images.push(character);
     	this.totalImages++;
 
     	image.onload = function() {
+    		var character = {
+    			x: 0,
+    			y: 0,
+    			width: image.width,
+    			height: image.height,
+    			image: image
+    		}
+    		gameui.images.push(character);
+
     		imageLoader.loadedImages++;
     		if(imageLoader.loadedImages === imageLoader.totalImages) {
     			imageLoader.loaded = true;
@@ -47,10 +48,10 @@ var gameui = {
 	images: [],
 
 	init:function() {
-		this.canvas = document.getElementById('gamecanvas');
-		this.context = this.canvas.getContext('2d');
-		this.canvaswidth = this.canvas.getAttribute('width');
-		this.canvasheight = this.canvas.getAttribute('height');
+		this.canvas = document.getElementById("gamecanvas");
+		this.context = this.canvas.getContext("2d");
+		this.canvaswidth = this.canvas.getAttribute("width");
+		this.canvasheight = this.canvas.getAttribute("height");
 
 		imageLoader.load("images/elephant.png");
 		imageLoader.load("images/pinkbird.png");
@@ -61,11 +62,21 @@ var gameui = {
 		imageLoader.load("images/yellowapple.png");
 		imageLoader.load("images/greenapple.png");
 		imageLoader.load("images/explosion.png");
+	},
+
+	drawCharacter:function(idx) {
+		this.context.drawImage(this.images[idx].image, this.images[idx].x, this.images[idx].y);
+	},
+
+	updateCharPosn:function(idx, x, y) {
+		this.images[idx].x = x;
+		this.images[idx].y = y;
 	}
 }
 
 function playGame() {
-	
+	gameui.updateCharPosn(0, 60, 60);
+	gameui.drawCharacter(0);
 }
 
 var startscreen= {

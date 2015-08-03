@@ -1,6 +1,4 @@
-
-
-#gamecontainer {
+.gamecontainer {
   width: 1200px;
   height: 660px;
   background: url("../images/background.png");
