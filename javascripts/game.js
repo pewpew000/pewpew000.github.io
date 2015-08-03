@@ -75,7 +75,7 @@ var startscreen= {
 		               .animate({top: '-=20'},{duration: 150})
 		               .animate({top: '+=20'},{duration: 250})
 		               .animate({top: '-=20'},{duration: 150})
-		               .delay(1200).show("#birdfront", runIt);
+		               .delay(1000).show("#birdfront", runIt);
 		   }
 
 		   runIt();
