@@ -89,6 +89,7 @@ var settings = {
 	init: function() {
 		sound = new Audio();
 		sound.src = "sound/background.mp3"
+		sound.loop = true;
 		sound.play();
 		isSoundOn = true;
 
