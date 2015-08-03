@@ -7,32 +7,36 @@ var canvas, context;
 var width;
 var canvaswidth, canvasheight
 var numcells;
-var images = new Array(5); // 5 images total
+var images = new Array(8); // 8 images total
 
 var imageLoader = {
 	loaded:true,
     loadedImages:0,
     totalImages:0,
+
     load:function(url){
     	this.loaded = false;
     	var image = new Image();
     	image.src = url;
     	images[this.totalImages] = image;
     	this.totalImages++;
+
     	image.onload = function() {
     		imageLoader.loadedImages++;
     		if(imageLoader.loadedImages === imageLoader.totalImages) {
     			imageLoader.loaded = true;
+    			setTimeout(function() { $('#startscreen').hide() }, 700);
     			playGame();
     		}
     	}
     }
 }
 
-function pageLoaded(){
-	// Draw background grid
-	//drawBackground();
-	
+function playGame() {
+
+}
+
+function pageLoaded(){	
     // Image loading
 	imageLoader.load("images/pinkbird.png");
 	imageLoader.load("images/bluebird.png");
@@ -44,8 +48,6 @@ function pageLoaded(){
     imageLoader.load("images/explosion.png");
 }
 
-
-
 var startscreen= {
 	init: function(){
 		$('.gamelayer').hide();
@@ -53,6 +55,12 @@ var startscreen= {
 		$('#loading').hide();
 		$('#startgame').hide();
 		setTimeout(function() { $('#startgame').show() }, 700);
+
+		$('#startgame').click(function(){
+			$('#startgame').hide();
+			$('#loading').show();
+			pageLoaded();
+		});
 
 		$(function () {
 		   function runIt() {
@@ -90,16 +98,12 @@ var settings = {
 			}
 		});
 	}
-
 }
 
 
 // ============================================ init function ============================== // 
 function initgame(){
-
 	startscreen.init();
 	settings.init();
-
-	pageLoaded();
 }
 
