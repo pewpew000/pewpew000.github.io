@@ -44,31 +44,62 @@ function pageLoaded(){
     imageLoader.load("images/explosion.png");
 }
 
-var game= {
+
+
+var startscreen= {
 	init: function(){
 		$('.gamelayer').hide();
 		$('#titlescreen').show();
 		$('#loading').hide();
 		$('#startgame').hide();
-		for(i = 0; i < 2; i++){
-			$('#birdfront').animate({top: '+=20'},{duration: 250});
-			$('#birdfront').animate({top: '-=20'},{duration: 150});
-		}
 		setTimeout(function() { $('#startgame').show() }, 700);
+
+		$(function () {
+		   function runIt() {
+		      $('#birdfront').animate({top: '+=20'},{duration: 250})
+		               .animate({top: '-=20'},{duration: 150})
+		               .animate({top: '+=20'},{duration: 250})
+		               .animate({top: '-=20'},{duration: 150})
+		               .delay(1200).show("#birdfront", runIt);
+		   }
+
+		   runIt();
+		});
 	}
 }
 
-var sound= new Audio();
-sound.src = "sound/background.mp3"
-//sound.play();
+var settings = {
+	isSoundOn:true,
+
+	init: function() {
+		sound = new Audio();
+		sound.src = "sound/background.mp3"
+		sound.play();
+		isSoundOn = true;
+
+		// set the sound button click event
+		$('#sound').click(function(){
+			if(isSoundOn == true) {
+				sound.pause();
+				isSoundOn = false;
+				$("#sound").attr("src", "images/soundoff.png");
+			} else {
+				sound.play();
+				isSoundOn = true;
+				$("#sound").attr("src", "images/soundon.png");
+			}
+		});
+	}
+
+}
+
 
 // ============================================ init function ============================== // 
 function initgame(){
 
-	game.init();
-	// =================== load page ===================== //
-	
+	startscreen.init();
+	settings.init();
+
 	pageLoaded();
-	
 }
 
