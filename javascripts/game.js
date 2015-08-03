@@ -7,7 +7,7 @@ var canvas, context;
 var width;
 var canvaswidth, canvasheight
 var numcells;
-var images = new Array(8); // 8 images total
+var images = new Array(10); // 10 images total
 
 var imageLoader = {
 	loaded:true,
@@ -25,8 +25,12 @@ var imageLoader = {
     		imageLoader.loadedImages++;
     		if(imageLoader.loadedImages === imageLoader.totalImages) {
     			imageLoader.loaded = true;
-    			setTimeout(function() { $('#startscreen').hide() }, 700);
-    			playGame();
+    			setTimeout(function() { $('#startscreen').hide();
+										$('#tutorial').show(); }, 700);
+    			$('#startgame2').click(function(){
+					$('#tutorial').hide();
+					playGame();
+				});
     		}
     	}
     }
@@ -40,8 +44,10 @@ function pageLoaded(){
     // Image loading
 	imageLoader.load("images/pinkbird.png");
 	imageLoader.load("images/bluebird.png");
-    imageLoader.load("images/ball.png");
+    imageLoader.load("images/yellowball.png");
     imageLoader.load("images/greenball.png");
+    imageLoader.load("images/yellowapple.png");
+    imageLoader.load("images/greenapple.png");
     imageLoader.load("images/elephant.png");
     imageLoader.load("images/cat.png");
     imageLoader.load("images/bee.png");
@@ -54,6 +60,7 @@ var startscreen= {
 		$('#titlescreen').show();
 		$('#loading').hide();
 		$('#startgame').hide();
+		$('#tutorial').hide();
 		setTimeout(function() { $('#startgame').show() }, 700);
 
 		$('#startgame').click(function(){
