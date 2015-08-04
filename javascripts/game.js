@@ -50,6 +50,10 @@ var gameui = {
 	canvaswidth:0,
 	canvasheight:0,
 	images: {},
+	yApples: [],
+	gApples: [],
+	yBalls: [],
+	gBalls: [],
 
 	init:function() {
 		$("body").css("overflow", "hidden"); //disable scroll bar action
@@ -94,18 +98,119 @@ var gameui = {
 							   this.images[key].image.height);
 	},
 
-	canMove:function(key, x, y) {
-		
-		var mx = x;
-		var mxw = mx + this.images[key].image.width;
-		var my = y;
-		var myh = my + this.images[key].image.height;
+	// TODO: Remove reduncy for two apple arrays
+	getRandomAppleLocation:function() {
+		var coord = [];
+		var invalidCoord = false;
+		var maxTry = 6;
+		var numTry = 0;
+		while(true) {
+			numTry++;
+			if(numTry === maxTry) {
+				coord = [];
+				break;
+			}
+			coord[0] = Math.max(0, Math.random() * this.canvaswidth - this.images["yApple"].image.width);
+			coord[1] = Math.max(0, Math.random() * this.canvasheight - this.images["yApple"].image.height);
+			var newapple = {
+				x: coord[0],
+				y: coord[1],
+				image: this.images["yApple"].image // do this because apple sizes are the same
+			}
+			// check if it's overlapping with any character
+			for (var k in this.images) {
+				if (!(k === "main" || k === "bird" || k === "bee" || k === "cat")) {
+					continue;
+				}
+				var kcharacter = {
+					x: this.images[k].x,
+					y: this.images[k].y,
+					image: this.images[k].image
+				};
+				if (this.isOverlapping(newapple, kcharacter)) {
+					invalidCoord = true;
+					break;
+				}
+			}
+			if(invalidCoord) {
+				continue;
+			}
+			// check if it's overlapping with any other apples
+			for (i=0; i < this.yApples.length; i+=2) {
+				var kapple = {
+					x: this.yApples[i],
+					y: this.yApples[i+1],
+					image: this.images["yApple"].image
+				}
+				if (this.isOverlapping(newapple, kapple)) {
+					invalidCoord = true;
+					break;
+				}
+			}
+			if(invalidCoord) {
+				continue;
+			}
+			for (i=0; i < this.gApples.length; i+=2) {
+				var kapple = {
+					x: this.gApples[i],
+					y: this.gApples[i+1],
+					image: this.images["gApple"].image
+				}
+				if (this.isOverlapping(newapple, kapple)) {
+					invalidCoord = true;
+					break;
+				}
+			}
+			if(invalidCoord) {
+				continue;
+			}
+			break; //found the new coord
+		}
+		console.log("coord: %d, %d", coord[0], coord[1]);
+		return coord;
+	},
 
-		console.log("mx: %d, mxw: %d, my: %d, myh: %d", mx, mxw, my, myh);
+	drawRandomYellowApple:function() {
+		var coord = this.getRandomAppleLocation();
+		if(coord.length > 0) {
+			this.updateCharPosn("yApple", coord[0], coord[1]);
+			this.drawCharacter("yApple");
+			(this.yApples).push(coord[0]);
+			(this.yApples).push(coord[1]);
+		}
+	},
+
+	isOverlapping:function(img1, img2) {
+		var mx = img1.x;
+		var mxw = mx + img1.image.width;
+		var my = img1.y;
+		var myh = my + img1.image.height;
+
+		var kx = img2.x;
+		var kxw = kx + img2.image.width;
+		var ky = img2.y;
+		var kyh = ky + img2.image.height;
+
+		//console.log("mx: %d, mxw: %d, my: %d, myh: %d", mx, mxw, my, myh);
+		//console.log("kx: %d, kxw: %d, ky: %d, kyh: %d", kx, kxw, ky, kyh);
+
+		if (!(kxw < mx || kx > mxw) &&
+			!(kyh < my || ky > myh))  {
+			return true;
+		}
+		return false;
+	},
+
+	canMove:function(key, x, y) {
+		var mcharacter = {
+			x: x,
+			y: y,
+			image: this.images[key].image
+		};
 
 		// check if any character is in the way
 		for (var k in this.images) {
-			if (k === key || !(k === "elephant" || k === "bird" || k === "bee" || k === "cat")) {
+			if (k === key || !(k === "main" || k === "bird" || k === "bee" || k === "cat")) {
 				continue;
 			}
 			
@@ -113,18 +218,15 @@ var gameui = {
 				return false;
 			}
 
-			var kx = this.images[k].x;
-			var kxw = kx + this.images[k].image.width;
-			var ky = this.images[k].y;
-			var kyh = ky + this.images[k].image.height;
+			var kcharacter = {
+				x: this.images[k].x,
+				y: this.images[k].y,
+				image: this.images[k].image
+			};
 
-			console.log("k: %s, kx: %d, kxw: %d, ky: %d, kyh: %d", k, kx, kxw, ky, kyh);
-
-			if (!(kxw < mx || kx > mxw) &&
-				!(kyh < my || ky > myh))  {
-				console.log("blocked on k: %s", k);
+			if(this.isOverlapping(mcharacter, kcharacter)) {
 				return false;
-			}
+			 }
 		}
 		return true;
 	},
@@ -224,6 +326,7 @@ function playGame() {
 
 	// === Real game logic starts === //
 	keyHandler.init();
+	//gameui.drawRandomYellowApple();
 }
 
 var startscreen= {
