@@ -4,7 +4,7 @@
 
 // Global variables for drawing
 var moveLimitBy = 300;
-var moveBy = 5;
+var moveBy = 8;
 
 var imageLoader = {
 	loaded:true,
@@ -94,28 +94,71 @@ var gameui = {
 							   this.images[key].image.height);
 	},
 
+	canMove:function(key, x, y) {
+		
+		var mx = x;
+		var mxw = mx + this.images[key].image.width;
+		var my = y;
+		var myh = my + this.images[key].image.height;
+
+		console.log("mx: %d, mxw: %d, my: %d, myh: %d", mx, mxw, my, myh);
+
+		// check if any character is in the way
+		for (var k in this.images) {
+			if (k === key || !(k === "elephant" || k === "bird" || k === "bee" || k === "cat")) {
+				continue;
+			}
+			
+			var kx = this.images[k].x;
+			var kxw = kx + this.images[k].image.width;
+			var ky = this.images[k].y;
+			var kyh = ky + this.images[k].image.height;
+
+			console.log("k: %s, kx: %d, kxw: %d, ky: %d, kyh: %d", k, kx, kxw, ky, kyh);
+
+			if (!(kxw < mx || kx > mxw) &&
+				!(kyh < my || ky > myh))  {
+				console.log("blocked on k: %s", k);
+				return false;
+			}
+		}
+		return true;
+	},
+
 	moveCharacter:function(key, direction) {
-		this.clearCharacter(key);
+		
 		switch(direction) {
 			case 38: //up
 				var new_y = Math.max(this.images[key].y - moveBy, 0);
-				this.updateCharPosn(key, this.images[key].x, new_y);
-			   	this.drawCharacter(key);
+				if(this.canMove(key, this.images[key].x, new_y)) {
+					this.clearCharacter(key);
+					this.updateCharPosn(key, this.images[key].x, new_y);
+			   		this.drawCharacter(key);
+			   	}
 			break;
 			case 39: //right
 			   	var new_x = Math.min(this.images[key].x + moveBy, this.canvaswidth - this.images[key].image.width);
-				this.updateCharPosn(key, new_x, this.images[key].y);
-			   	this.drawCharacter(key);
+			   	if(this.canMove(key, new_x, this.images[key].y)) {
+			   		this.clearCharacter(key);
+					this.updateCharPosn(key, new_x, this.images[key].y);
+			   		this.drawCharacter(key);
+			   	}
 			break;
 			case 40: //down
 				var new_y = Math.min(this.images[key].y + moveBy, this.canvasheight - this.images[key].image.height);
-				this.updateCharPosn(key, this.images[key].x, new_y);
-			   	this.drawCharacter(key);
+				if(this.canMove(key, this.images[key].x, new_y)) {
+					this.clearCharacter(key);
+					this.updateCharPosn(key, this.images[key].x, new_y);
+			   		this.drawCharacter(key);
+			   	}
 			break;
 			case 37: //left
 				var new_x = Math.max(this.images[key].x - moveBy, 0);
-				this.updateCharPosn(key, new_x, this.images[key].y);
-			   	this.drawCharacter(key);
+				if(this.canMove(key, new_x, this.images[key].y)) {
+					this.clearCharacter(key);
+					this.updateCharPosn(key, new_x, this.images[key].y);
+			   		this.drawCharacter(key);
+			   	}
 			break;
 			default:
 			break;
