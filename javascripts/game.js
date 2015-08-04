@@ -92,10 +92,10 @@ var gameui = {
 		this.images[key].max_x = max_x;
 	},
 
-	clearCharacter:function(key) {
-		this.context.clearRect(this.images[key].x, this.images[key].y,
-							   this.images[key].image.width,
-							   this.images[key].image.height);
+	clearCharacter:function(img) {
+		this.context.clearRect(img.x, img.y,
+							   img.image.width,
+							   img.image.height);
 	},
 
 	// TODO: Remove redundancy for two apple arrays
@@ -170,6 +170,31 @@ var gameui = {
 		return coord;
 	},
 
+	isCharacterAt:function(img, key) {
+		switch(key) {
+			case "yApple":
+				for (i=0; i < this.yApples.length; i+=2) {
+					if(img.x === this.yApples[i] && img.y === this.yApples[i+1]) {
+						return [true, i];
+					}
+				}
+			break;
+			case "gApple":
+				for (i=0; i < this.gApples.length; i+=2) {
+					if(img.x === this.gApples[i] && img.y === this.gApples[i+1]) {
+						return [true, i];
+					}
+				}
+			break;
+			default:
+				console.log("unhandled key at isCharacterAt");
+			break;
+		}
+		return [false];
+	},
+
+	//TODO: Remove redundancy btw drawRandomYellowApple & drawRandomGreenApple
+	// if list can be passed/accessed by reference
 	drawRandomYellowApple:function() {
 		var coord = this.getRandomAppleLocation();
 		if(coord.length > 0) {
@@ -177,6 +202,20 @@ var gameui = {
 			this.drawCharacter("yApple");
 			(this.yApples).push(coord[0]);
 			(this.yApples).push(coord[1]);
+			// no need if javascript pass arguments by value TODO: find out what js does
+			var img = {
+				x: coord[0],
+				y: coord[1],
+				image: this.images["yApple"].image
+			}
+			setTimeout(function() {
+				var ret = gameui.isCharacterAt(img, "yApple");
+				if(ret[0] == true) {
+					gameui.clearCharacter(img);
+					//remove apple positions from yApples
+					gameui.yApples.splice(ret[1], 2);
+				}
+			}, 4000);
 		}
 	},
 
@@ -187,6 +226,19 @@ var gameui = {
 			this.drawCharacter("gApple");
 			(this.gApples).push(coord[0]);
 			(this.gApples).push(coord[1]);
+			var img = {
+				x: coord[0],
+				y: coord[1],
+				image: this.images["gApple"].image
+			}
+			setTimeout(function() {
+				var ret = gameui.isCharacterAt(img, "gApple");
+				if(ret[0] == true) {
+					gameui.clearCharacter(img);
+					//remove apple positions from gApples
+					gameui.gApples.splice(ret[1], 2);
+				}
+			}, 4000);
 		}
 	},
 
@@ -247,7 +299,7 @@ var gameui = {
 			case 38: //up
 				var new_y = Math.max(this.images[key].y - moveBy, 0);
 				if(this.canMove(key, this.images[key].x, new_y)) {
-					this.clearCharacter(key);
+					this.clearCharacter(this.images[key]);
 					this.updateCharPosn(key, this.images[key].x, new_y);
 			   		this.drawCharacter(key);
 			   	}
@@ -255,7 +307,7 @@ var gameui = {
 			case 39: //right
 			   	var new_x = Math.min(this.images[key].x + moveBy, this.canvaswidth - this.images[key].image.width);
 			   	if(this.canMove(key, new_x, this.images[key].y)) {
-			   		this.clearCharacter(key);
+			   		this.clearCharacter(this.images[key]);
 					this.updateCharPosn(key, new_x, this.images[key].y);
 			   		this.drawCharacter(key);
 			   	}
@@ -263,7 +315,7 @@ var gameui = {
 			case 40: //down
 				var new_y = Math.min(this.images[key].y + moveBy, this.canvasheight - this.images[key].image.height);
 				if(this.canMove(key, this.images[key].x, new_y)) {
-					this.clearCharacter(key);
+					this.clearCharacter(this.images[key]);
 					this.updateCharPosn(key, this.images[key].x, new_y);
 			   		this.drawCharacter(key);
 			   	}
@@ -271,7 +323,7 @@ var gameui = {
 			case 37: //left
 				var new_x = Math.max(this.images[key].x - moveBy, 0);
 				if(this.canMove(key, new_x, this.images[key].y)) {
-					this.clearCharacter(key);
+					this.clearCharacter(this.images[key]);
 					this.updateCharPosn(key, new_x, this.images[key].y);
 			   		this.drawCharacter(key);
 			   	}
