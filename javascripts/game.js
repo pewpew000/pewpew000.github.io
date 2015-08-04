@@ -4,6 +4,7 @@
 
 // Global variables for drawing
 var moveLimitBy = 300;
+var moveBy = 5;
 
 var imageLoader = {
 	loaded:true,
@@ -51,6 +52,7 @@ var gameui = {
 	images: {},
 
 	init:function() {
+		$("body").css("overflow", "hidden"); //disable scroll bar action
 		this.canvas = document.getElementById("gamecanvas");
 		this.context = this.canvas.getContext("2d");
 		this.canvaswidth = this.canvas.getAttribute("width");
@@ -85,6 +87,64 @@ var gameui = {
 		this.images[key].min_x = min_x;
 		this.images[key].max_x = max_x;
 	},
+
+	clearCharacter:function(key) {
+		this.context.clearRect(this.images[key].x, this.images[key].y,
+							   this.images[key].image.width,
+							   this.images[key].image.height);
+	},
+
+	moveCharacter:function(key, direction) {
+		this.clearCharacter(key);
+		switch(direction) {
+			case 38: //up
+				var new_y = Math.max(this.images[key].y - moveBy, 0);
+				this.updateCharPosn(key, this.images[key].x, new_y);
+			   	this.drawCharacter(key);
+			break;
+			case 39: //right
+			   	var new_x = Math.min(this.images[key].x + moveBy, this.canvaswidth - this.images[key].image.width);
+				this.updateCharPosn(key, new_x, this.images[key].y);
+			   	this.drawCharacter(key);
+			break;
+			case 40: //down
+				var new_y = Math.min(this.images[key].y + moveBy, this.canvasheight - this.images[key].image.height);
+				this.updateCharPosn(key, this.images[key].x, new_y);
+			   	this.drawCharacter(key);
+			break;
+			case 37: //left
+				var new_x = Math.max(this.images[key].x - moveBy, 0);
+				this.updateCharPosn(key, new_x, this.images[key].y);
+			   	this.drawCharacter(key);
+			break;
+			default:
+			break;
+		}
+	}
+}
+
+var keyHandler = {
+	keydown: 0,
+	keyup: 0,
+
+	init:function() {
+		$('html').keydown(function(e){
+		    switch(e.which) {
+			    case 38: //up
+			    case 39: //right
+			    case 40: //down
+			    case 37: //left
+			    	gameui.moveCharacter("main", e.which);
+			    break;
+			    case 71: //G
+			    break;
+			    case 89: //Y
+			    break;
+			    default:
+			    break;
+			}
+		});
+	},
 }
 
 function playGame() {
@@ -115,6 +175,8 @@ function playGame() {
 	gameui.updatePosnLimit("bee", xmax - moveLimitBy, xmax);
 	gameui.drawCharacter("bee");
 
+	// === Real game logic starts === //
+	keyHandler.init();
 }
 
 var startscreen= {
