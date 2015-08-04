@@ -103,6 +103,7 @@ function playGame() {
 	gameui.updatePosnLimit("bird", xmax - moveLimitBy, xmax);
 	gameui.drawCharacter("bird");
 
+	ymax = gameui.canvasheight - gameui.images["cat"].image.height;
 	gameui.updateCharPosn("cat", offset, ymax - offset);
 	gameui.updatePosnLimit("cat", 0, moveLimitBy);
 	gameui.drawCharacter("cat");
