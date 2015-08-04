@@ -109,6 +109,10 @@ var gameui = {
 				continue;
 			}
 			
+			if (x < this.images[key].min_x || x > this.images[key].max_x) {
+				return false;
+			}
+
 			var kx = this.images[k].x;
 			var kxw = kx + this.images[k].image.width;
 			var ky = this.images[k].y;
