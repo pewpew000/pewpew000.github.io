@@ -98,7 +98,7 @@ var gameui = {
 							   this.images[key].image.height);
 	},
 
-	// TODO: Remove reduncy for two apple arrays
+	// TODO: Remove redundancy for two apple arrays
 	getRandomAppleLocation:function() {
 		var coord = [];
 		var invalidCoord = false;
@@ -110,8 +110,8 @@ var gameui = {
 				coord = [];
 				break;
 			}
-			coord[0] = Math.max(0, Math.random() * this.canvaswidth - this.images["yApple"].image.width);
-			coord[1] = Math.max(0, Math.random() * this.canvasheight - this.images["yApple"].image.height);
+			coord[0] = Math.max(0, Math.floor(Math.random() * this.canvaswidth) - this.images["yApple"].image.width);
+			coord[1] = Math.max(0, Math.floor(Math.random() * this.canvasheight) - this.images["yApple"].image.height);
 			var newapple = {
 				x: coord[0],
 				y: coord[1],
@@ -177,6 +177,16 @@ var gameui = {
 			this.drawCharacter("yApple");
 			(this.yApples).push(coord[0]);
 			(this.yApples).push(coord[1]);
+		}
+	},
+
+	drawRandomGreenApple:function() {
+		var coord = this.getRandomAppleLocation();
+		if(coord.length > 0) {
+			this.updateCharPosn("gApple", coord[0], coord[1]);
+			this.drawCharacter("gApple");
+			(this.gApples).push(coord[0]);
+			(this.gApples).push(coord[1]);
 		}
 	},
 
@@ -326,7 +336,12 @@ function playGame() {
 
 	// === Real game logic starts === //
 	keyHandler.init();
-	//gameui.drawRandomYellowApple();
+	gameui.drawRandomYellowApple();
+	gameui.drawRandomGreenApple();
+	gameui.drawRandomYellowApple();
+	gameui.drawRandomGreenApple();
+	gameui.drawRandomYellowApple();
+	gameui.drawRandomGreenApple();
 }
 
 var startscreen= {
