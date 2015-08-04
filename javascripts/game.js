@@ -3,13 +3,14 @@
 //
 
 // Global variables for drawing
+var moveLimitBy = 300;
 
 var imageLoader = {
 	loaded:true,
     loadedImages:0,
     totalImages:0,
 
-    load:function(url){
+    load:function(url, key){
     	this.loaded = false;
     	var image = new Image();
     	image.src = url;
@@ -19,11 +20,13 @@ var imageLoader = {
     		var character = {
     			x: 0,
     			y: 0,
-    			width: image.width,
-    			height: image.height,
+    			min_x: 0,
+    			max_x: 0,
     			image: image
     		}
-    		gameui.images.push(character);
+    		//gameui.images.push(character);
+    		//gameui.images[idx] = character;
+    		gameui.images[key] = character;
 
     		imageLoader.loadedImages++;
     		if(imageLoader.loadedImages === imageLoader.totalImages) {
@@ -45,7 +48,7 @@ var gameui = {
 	canvas:0,
 	canvaswidth:0,
 	canvasheight:0,
-	images: [],
+	images: {},
 
 	init:function() {
 		this.canvas = document.getElementById("gamecanvas");
@@ -53,30 +56,64 @@ var gameui = {
 		this.canvaswidth = this.canvas.getAttribute("width");
 		this.canvasheight = this.canvas.getAttribute("height");
 
-		imageLoader.load("images/elephant.png");
-		imageLoader.load("images/pinkbird.png");
-		imageLoader.load("images/cat.png");
-		imageLoader.load("images/bee.png");
-		imageLoader.load("images/yellowball.png");
-		imageLoader.load("images/greenball.png");
-		imageLoader.load("images/yellowapple.png");
-		imageLoader.load("images/greenapple.png");
-		imageLoader.load("images/explosion.png");
+		var imagesSrcs = [ "images/elephant.png", "main",
+					   	   "images/pinkbird.png", "bird",
+					   	   "images/cat.png", "cat",
+					   	   "images/bee.png", "bee",
+					   	   "images/yellowball.png", "yBall",
+					   	   "images/greenball.png", "gBall",
+					   	   "images/yellowapple.png", "yApple",
+					   	   "images/greenapple.png", "gApple",
+					   	   "images/explosion.png", "explosion" ];
+
+		for(i=0; i < imagesSrcs.length; i++) {
+			imageLoader.load(imagesSrcs[i], imagesSrcs[i+1]);
+			i++;
+		}
 	},
 
-	drawCharacter:function(idx) {
-		this.context.drawImage(this.images[idx].image, this.images[idx].x, this.images[idx].y);
+	drawCharacter:function(key) {
+		this.context.drawImage(this.images[key].image, this.images[key].x, this.images[key].y);
 	},
 
-	updateCharPosn:function(idx, x, y) {
-		this.images[idx].x = x;
-		this.images[idx].y = y;
-	}
+	updateCharPosn:function(key, x, y) {
+		this.images[key].x = x;
+		this.images[key].y = y;
+	},
+
+	updatePosnLimit:function(key, min_x, max_x) {
+		this.images[key].min_x = min_x;
+		this.images[key].max_x = max_x;
+	},
 }
 
 function playGame() {
-	gameui.updateCharPosn(0, 60, 60);
-	gameui.drawCharacter(0);
+
+	// === init character positions === //
+
+	var offset = 50;
+	gameui.updateCharPosn("main", offset, offset);
+	gameui.updatePosnLimit("main", 0, moveLimitBy);
+	gameui.drawCharacter("main");
+
+	// bird is on the opposite side of main
+	var xmax = gameui.canvaswidth - gameui.images["bird"].image.width;
+	var ymax = gameui.canvasheight - gameui.images["bird"].image.height;
+	gameui.updateCharPosn("bird", xmax - offset, offset);
+	gameui.updatePosnLimit("bird", xmax - moveLimitBy, xmax);
+	gameui.drawCharacter("bird");
+
+	gameui.updateCharPosn("cat", offset, ymax - offset);
+	gameui.updatePosnLimit("cat", 0, moveLimitBy);
+	gameui.drawCharacter("cat");
+
+	// bee is one the opposite side of main
+	xmax = gameui.canvaswidth - gameui.images["bee"].image.width;
+	ymax = gameui.canvasheight - gameui.images["bee"].image.height;
+	gameui.updateCharPosn("bee", xmax - offset, ymax - offset);
+	gameui.updatePosnLimit("bee", xmax - moveLimitBy, xmax);
+	gameui.drawCharacter("bee");
+
 }
 
 var startscreen= {
