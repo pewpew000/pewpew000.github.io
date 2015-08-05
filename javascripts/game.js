@@ -264,6 +264,10 @@ var gameui = {
 	},
 
 	canMove:function(key, x, y) {
+		if (x < this.images[key].min_x || x > this.images[key].max_x) {
+			return false;
+		}
+
 		var mcharacter = {
 			x: x,
 			y: y,
@@ -272,12 +276,8 @@ var gameui = {
 
 		// check if any character is in the way
 		for (var k in this.images) {
-			if (k === key || !(k === "main" || k === "bird" || k === "bee" || k === "cat")) {
+			if (k === key) {
 				continue;
-			}
-			
-			if (x < this.images[key].min_x || x > this.images[key].max_x) {
-				return false;
 			}
 
 			var kcharacter = {
@@ -286,9 +286,45 @@ var gameui = {
 				image: this.images[k].image
 			};
 
-			if(this.isOverlapping(mcharacter, kcharacter)) {
-				return false;
-			 }
+			//TODO: I don't really know about how to access reference of something in javascript
+			// I can remove redundancy in the code later if find that out
+			if (k === "yApple") {
+				for(i = 0; i < this.yApples.length; i+=2) {
+					kcharacter.x = this.yApples[i];
+					kcharacter.y = this.yApples[i+1];
+					// eat yellow apple
+					if (this.isOverlapping(mcharacter, kcharacter)) {
+						var ret = this.isCharacterAt(kcharacter, k);
+						if(ret[0] == true) {
+							settings.makeSound("applebite");
+							this.clearCharacter(kcharacter);
+							//remove apple positions from yApples
+							this.yApples.splice(ret[1], 2);
+						}
+					}
+				}
+			}
+			else if (k === "gApple") {
+				for(i = 0; i < this.gApples.length; i+=2) {
+					kcharacter.x = this.gApples[i];
+					kcharacter.y = this.gApples[i+1];
+					// eat green apple
+					if (this.isOverlapping(mcharacter, kcharacter)) {
+						var ret = this.isCharacterAt(kcharacter, k);
+						if(ret[0] == true) {
+							settings.makeSound("applebite");
+							this.clearCharacter(kcharacter);
+							//remove apple positions from gApples
+							this.gApples.splice(ret[1], 2);
+						}
+					}
+				}
+			}
+			else if (k === "main" || k === "bird" || k === "cat" || k === "bee") {
+				if (this.isOverlapping(mcharacter, kcharacter)) {
+					return false;
+				}
+			}
 		}
 		return true;
 	},
@@ -335,8 +371,8 @@ var gameui = {
 }
 
 var keyHandler = {
-	keydown: 0,
-	keyup: 0,
+	keydown: false,
+	keyup: false,
 
 	init:function() {
 		$('html').keydown(function(e){
@@ -355,6 +391,7 @@ var keyHandler = {
 			    break;
 			}
 		});
+
 	},
 }
 
@@ -388,12 +425,10 @@ function playGame() {
 
 	// === Real game logic starts === //
 	keyHandler.init();
-	gameui.drawRandomYellowApple();
-	gameui.drawRandomGreenApple();
-	gameui.drawRandomYellowApple();
-	gameui.drawRandomGreenApple();
-	gameui.drawRandomYellowApple();
-	gameui.drawRandomGreenApple();
+	for(i=0; i < 10; ++i) {
+		gameui.drawRandomGreenApple();
+		gameui.drawRandomYellowApple();
+	}
 }
 
 var startscreen= {
@@ -427,13 +462,20 @@ var startscreen= {
 
 var settings = {
 	isSoundOn:true,
+	soundEffects:{},
 
 	init: function() {
 		sound = new Audio();
-		sound.src = "sound/background.mp3"
+		sound.src = "sound/background.mp3";
 		sound.loop = true;
 		sound.play();
 		isSoundOn = true;
+
+		// probably we should load sound the same way we load images
+		var effect = new Audio();
+		effect.src = "sound/applebite.mp3";
+		effect.loop = false;
+		this.soundEffects["applebite"] = effect;
 
 		// set the sound button click event
 		$('#sound').click(function(){
@@ -447,11 +489,15 @@ var settings = {
 				$("#sound").attr("src", "images/soundon.png");
 			}
 		});
+	},
+
+	makeSound: function(key) {
+		if(isSoundOn) {
+			this.soundEffects[key].play();
+		}
 	}
 }
 
-
-// ============================================ init function ============================== // 
 function initgame(){
 	startscreen.init();
 	settings.init();
