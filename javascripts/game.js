@@ -24,7 +24,10 @@ var imageLoader = {
     			y: 0,
     			min_x: 0,
     			max_x: 0,
-    			image: image
+    			image: image,
+    			yBulletsNum: 3,
+    			gBulletsNum: 2,
+    			heartsNum: 5
     		}
     		//gameui.images.push(character);
     		//gameui.images[idx] = character;
@@ -45,7 +48,6 @@ var imageLoader = {
     }
 }
 
-
 var gameui = {
 	context:0,
 	canvas:0,
@@ -53,11 +55,8 @@ var gameui = {
 	canvasheight:0,
 	yBulletsMax:6,
 	gBulletsMax:4,
-	yBulletsNum:3,
-	gBulletsNum:2,
 	heartsMax:5,
-	heartsNum:5,
-	images: {},
+	images: {}, //name is probably bit misleading... Also I didn't separate characters from other images. This is associative array of character variables
 	yApples: [],
 	gApples: [],
 	yBalls: [],
@@ -84,40 +83,36 @@ var gameui = {
 			imageLoader.load(imagesSrcs[i], imagesSrcs[i+1]);
 			i++;
 		}
-
-		this.drawHearts();
-		this.drawYbullets();
-		this.drawGbullets();
 	},
 
-	drawHearts:function() {
+	drawHearts:function() { //only for the main character
 		var str = "";
-		for(i = 0; i < this.heartsNum; ++i) {
+		for(i = 0; i < this.images["main"].heartsNum; ++i) {
 			str = str.concat("<img src=\"images/fullheart.png\"> ");
 		}
-		for(i = 0; i < this.heartsMax - this.heartsMax; ++i) {
+		for(i = 0; i < this.heartsMax - this.images["main"].heartsNum; ++i) {
 			str = str.concat("<img src=\"images/emptyheart.png\"> ");
 		}
 		$('.hearts').html(str);
 	},
 
-	drawYbullets:function() {
+	drawYbullets:function() { //only for the main character
 		var str = "";
-		for(i = 0; i < this.yBulletsNum; ++i) {
+		for(i = 0; i < this.images["main"].yBulletsNum; ++i) {
 			str = str.concat("<img src=\"images/ybullet.png\"> ");
 		}
-		for(i = 0; i < this.yBulletsMax - this.yBulletsNum; ++i) {
+		for(i = 0; i < this.yBulletsMax - this.images["main"].yBulletsNum; ++i) {
 			str = str.concat("<img src=\"images/emptybullet.png\"> ");
 		}
 		$('.ybullets').html(str);
 	},
 
-	drawGbullets:function() {
+	drawGbullets:function() { //only for the main character
 		var str = "";
-		for(i = 0; i < this.gBulletsNum; ++i) {
+		for(i = 0; i < this.images["main"].gBulletsNum; ++i) {
 			str = str.concat("<img src=\"images/gbullet.png\"> ");
 		}
-		for(i = 0; i < this.gBulletsMax - this.gBulletsNum; ++i) {
+		for(i = 0; i < this.gBulletsMax - this.images["main"].gBulletsNum; ++i) {
 			str = str.concat("<img src=\"images/emptybullet.png\"> ");
 		}
 		$('.gbullets').html(str);
@@ -288,7 +283,7 @@ var gameui = {
 	},
 
 	fireYellowBomb:function(imgkey, dirkey) {
-		if(this.yBulletsNum == 0) {
+		if(this.images[imgkey].yBulletsNum == 0) {
 			return;
 		}
 		switch(dirkey) {
@@ -302,7 +297,7 @@ var gameui = {
 	},
 
 	fireGreenBomb:function(imgkey, dirkey) {
-		if(this.gBulletsNum == 0) {
+		if(this.images[imgkey].gBulletsNum == 0) {
 			return;
 		}
 		switch(dirkey) {
@@ -373,10 +368,12 @@ var gameui = {
 							this.clearCharacter(kcharacter);
 							//remove apple positions from yApples
 							this.yApples.splice(ret[1], 2);
-							if(this.yBulletsNum != this.yBulletsMax) {
-								(this.yBulletsNum)++;
+							if(this.images[key].yBulletsNum != this.yBulletsMax) {
+								(this.images[key].yBulletsNum)++;
 								settings.makeSound("blop");
-								this.drawYbullets();
+								if(key === "main") {
+									this.drawYbullets();
+								}
 							}
 						}
 					}
@@ -394,10 +391,12 @@ var gameui = {
 							this.clearCharacter(kcharacter);
 							//remove apple positions from gApples
 							this.gApples.splice(ret[1], 2);
-							if(this.gBulletsNum != this.gBulletsMax) {
-								(this.gBulletsNum)++;
+							if(this.images[key].gBulletsNum != this.gBulletsMax) {
+								(this.images[key].gBulletsNum)++;
 								settings.makeSound("blop");
-								this.drawGbullets();
+								if(key === "main") {
+									this.drawGbullets();
+								}
 							}
 						}
 					}
@@ -501,6 +500,10 @@ var keyHandler = {
 }
 
 function playGame() {
+
+	gameui.drawHearts();
+	gameui.drawYbullets();
+	gameui.drawGbullets();
 
 	// === init character positions === //
 
