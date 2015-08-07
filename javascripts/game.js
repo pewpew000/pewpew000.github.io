@@ -4,7 +4,7 @@
 
 // Global variables for drawing
 var moveLimitBy = 300;
-var moveBy = 8;
+var moveBy = 50;
 
 var imageLoader = {
 	loaded:true,
@@ -82,6 +82,70 @@ var gameui = {
 		this.context.drawImage(this.images[key].image, this.images[key].x, this.images[key].y);
 	},
 
+	drawFire:function(x, y){
+		this.context.drawImage(this.images["explosion"].image, x, y);
+	},
+
+	clearFire:function(x, y){
+//		var self = this;
+	//	return function() {
+		this.context.clearRect(x, y,
+								this.images["explosion"].image.width,
+								this.images["explosion"].image.height);
+	//	}
+	},
+
+	drawFireRange(key, direction){
+		var startx = this.images[key].x;
+		var starty = this.images[key].y;
+		var orix = this.images[key].x;
+		var oriy = this.images[key].y;
+		var self = this;
+		var xstep = this.images["explosion"].image.width;
+		var ystep = this.images["explosion"].image.height;
+
+		switch(direction){
+			case 87:	// UP
+				starty -= ystep;
+				while(starty > 0){
+					this.drawFire(orix, starty);
+					setTimeout(cleanFire(orix, starty), 1000);
+					starty -= ystep;
+				}
+			break;
+			case 83: // DOWN
+				starty += this.images[key].image.height;
+				while(starty + ystep < this.canvasheight){
+					this.drawFire(orix, starty);
+					setTimeout(cleanFire(orix, starty), 1000);
+					starty += ystep;
+				}
+			break;
+			case 65: // LEFT
+				startx -= xstep;
+				while(startx > 0){
+					this.drawFire(startx, oriy);
+					setTimeout(cleanFire(startx, oriy), 1000);
+					startx -= xstep;
+				}
+			break;
+			case 68: // RIGHT
+				startx += this.images[key].image.width;
+				while(startx + xstep < this.canvaswidth){
+					this.drawFire(startx, oriy);
+					setTimeout(cleanFire(startx, oriy), 1000);
+					startx += xstep;
+				}
+			break;
+			default:
+			break;
+		}
+	},
+/*
+	clearFireRange(key, direction){
+
+	},
+*/
 	updateCharPosn:function(key, x, y) {
 		this.images[key].x = x;
 		this.images[key].y = y;
@@ -367,32 +431,98 @@ var gameui = {
 			default:
 			break;
 		}
+	},
+	// draw bullet, basically immediately draw a ugly line to present fire range.
+	fire:function(key, direction){
+		switch(direction) {
+			case 65: // LEFT
+				this.drawFireRange();
+			break;
+			case 68: // RIGHT
+				this.drawFire();
+			break;
+			case 87: // UP
+				this.drawFire();
+			break;
+			case 83: // DOWN
+				this.drawFire();
+			break;
+			default:
+			break;
+		}
+
 	}
 }
 
+function cleanFire(x, y){
+	return function(){
+		gameui.clearFire(x, y)
+	};
+}
+
+
 var keyHandler = {
-	keydown: false,
-	keyup: false,
+	//keydown: false,
+	//keyup: false,
+//	map: {37: false, 38: false, 39: false, 40: false, 68: false, 87: false},
 
 	init:function() {
-		$('html').keydown(function(e){
-		    switch(e.which) {
-			    case 38: //up
-			    case 39: //right
-			    case 40: //down
-			    case 37: //left
-			    	gameui.moveCharacter("main", e.which);
-			    break;
-			    case 71: //G
-			    break;
-			    case 89: //Y
-			    break;
-			    default:
-			    break;
+//		var self = this;
+/*		$('html').keydown(function(e){
+			if(e.keyCode in self.map){
+				self.map[e.keyCode] = true;
+				if(self.map[68] && (self.map[37] || self.map[39])){
+					self.map[68] = false;
+					if(self.map[37]){ // LEFT
+						//console.log("fire left");
+						alert("fire left");
+						//gameui.fireBullet("main", 37);
+						self.map[37] = false;
+					} else { // RIGHT
+						//console.log("fire right");
+						alert("fire right");
+						//gameui.fireBullet("main", 39);
+						self.map[39] = false;
+					} 
+				} else if(self.map[87] && (self.map[38] || self.map[40])){
+					self.map[87] = false;
+					if(self.map[38]){ // UP
+						//gameui.fireBullet("main", 38);
+						self.map[38] = false;
+					} else { // DOWN
+						//gameui.fireBullet("main", 40);
+						self.map[40] = false;
+					}
+				} else if(self.map[37] || self.map[38] || self.map[39] || self.map[40]){
+					gameui.moveCharacter("main", e.which)
+				}
 			}
+		}).keyup(function(e){
+			if(e.keyCode in self.map)
+				self.map[e.keyCode] = false;
 		});
-
-	},
+*/
+		$('html').keydown(function(e){
+			switch(e.which){
+				case 37: // LEFT
+				case 38: // UP
+				case 39: // RIGHT
+				case 40: // DOWN
+					gameui.moveCharacter("main", e.which);
+				break;
+				case 65: // FIRE LEFT
+				case 68: // FIRE RIGHT
+				case 83: // FIRE DOWN
+				case 87: // FIRE UP
+					//alert("fired");
+					gameui.drawFireRange("main", e.which);
+				break;
+				default:
+				break;
+			}
+		
+		});
+	}
 }
 
 function playGame() {
@@ -502,4 +632,19 @@ function initgame(){
 	startscreen.init();
 	settings.init();
 }
+
+/* === data structures for background === */
+var world_states = new Array(3);
+
+function world_state(num) {
+	this.player_num = num;
+	this.player_pos = new Array(num);
+	this.player_logs = new Array(num);
+	this.dead = new Array(num);
+}
+
+world_state.prototype.getpnum = function() {
+	return this.player_num;
+}
+
 
