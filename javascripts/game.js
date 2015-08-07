@@ -795,10 +795,20 @@ world_state.prototype.init = function(){
 		// load bullets info
 		this.Bullet.push(new Bullet(0, 0));
 	}
+
 	// load apple info
+	
+	// set time interval, generate apples every 5 seconds
 
 }
 
 world_state.prototype.apply = function(action){
+	// judge if dead first
+
+	// judge if ate any apple
+
+	// judge if killed anyone
+
+	// update corresponding data
 
 }
