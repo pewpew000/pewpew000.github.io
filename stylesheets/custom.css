@@ -30,3 +30,23 @@
   padding-left: 40px;
   font-size: 27px;
 }
+
+.timer {
+  font-size: 25px;
+  display:inline;
+}
+
+.hearts {
+  margin-left: 20px;
+  display:inline;
+}
+
+.ybullets {
+  margin-left: 20px;
+  display:inline;
+}
+
+.gbullets {
+  margin-left: 20px;
+  display:inline;
+}
