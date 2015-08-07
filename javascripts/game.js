@@ -287,6 +287,34 @@ var gameui = {
 		}
 	},
 
+	fireYellowBomb:function(imgkey, dirkey) {
+		if(this.yBulletsNum == 0) {
+			return;
+		}
+		switch(dirkey) {
+			case 39: //right
+			settings.makeSound("shoot");
+		    case 37: //left
+		    settings.makeSound("shoot");
+		    default:
+		    break;
+		}
+	},
+
+	fireGreenBomb:function(imgkey, dirkey) {
+		if(this.gBulletsNum == 0) {
+			return;
+		}
+		switch(dirkey) {
+			case 38: //up
+			settings.makeSound("shoot");
+		    case 40: //down
+		    settings.makeSound("shoot");
+		    default:
+		    break;
+		}
+	},
+
 	isOverlapping:function(img1, img2) {
 		var mx = img1.x;
 		var mxw = mx + img1.image.width;
@@ -426,8 +454,8 @@ var gameui = {
 }
 
 var keyHandler = {
-	keydown: false,
-	keyup: false,
+	Wkeydown: false,
+	Dkeydown: false,
 
 	init:function() {
 		$('html').keydown(function(e){
@@ -436,17 +464,39 @@ var keyHandler = {
 			    case 39: //right
 			    case 40: //down
 			    case 37: //left
-			    	gameui.moveCharacter("main", e.which);
+			    	if(this.Wkeydown) {
+			    		gameui.fireGreenBomb("main", e.which);
+			    	}
+			    	else if(this.Dkeydown) {
+			    		gameui.fireYellowBomb("main", e.which);
+			    	}
+			    	else {
+			    		gameui.moveCharacter("main", e.which);
+			    	}
 			    break;
-			    case 71: //G
+			    case 87: //W -> G
+			    	this.Wkeydown = true;
 			    break;
-			    case 89: //Y
+			    case 68: //D -> Y
+			    	this.Dkeydown = true;
 			    break;
 			    default:
 			    break;
 			}
 		});
 
+		$('html').keyup(function(e){
+		    switch(e.which) {
+			    case 87: //W for Green
+			    	this.Wkeydown = false;
+			    break;
+			    case 68: //D for Yellow
+			    	this.Dkeydown = false;
+			    break;
+			    default:
+			    break;
+			}
+		});
 	},
 }
 
@@ -532,6 +582,8 @@ var settings = {
 		this.soundEffects["applebite"].src = "sound/applebite.mp3";
 		this.soundEffects["blop"] = new Audio();
 		this.soundEffects["blop"].src = "sound/blop.mp3";
+		this.soundEffects["shoot"] = new Audio();
+		this.soundEffects["shoot"].src = "sound/shoot.mp3";
 
 		// set the sound button click event
 		$('#sound').click(function(){
