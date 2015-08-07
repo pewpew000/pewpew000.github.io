@@ -4,7 +4,8 @@
 
 // Global variables for drawing
 var moveLimitBy = 300;
-var moveBy = 8;
+var moveBy = 15;
+var appleExpiryDuration = 40000; //for testing, it's very large
 
 var imageLoader = {
 	loaded:true,
@@ -36,6 +37,7 @@ var imageLoader = {
 										$('#tutorial').show(); }, 700);
     			$('#startgame2').click(function(){
 					$('#tutorial').hide();
+					$('#gametop').show();
 					playGame();
 				});
     		}
@@ -49,6 +51,12 @@ var gameui = {
 	canvas:0,
 	canvaswidth:0,
 	canvasheight:0,
+	yBulletsMax:6,
+	gBulletsMax:4,
+	yBulletsNum:3,
+	gBulletsNum:2,
+	heartsMax:5,
+	heartsNum:5,
 	images: {},
 	yApples: [],
 	gApples: [],
@@ -76,6 +84,43 @@ var gameui = {
 			imageLoader.load(imagesSrcs[i], imagesSrcs[i+1]);
 			i++;
 		}
+
+		this.drawHearts();
+		this.drawYbullets();
+		this.drawGbullets();
+	},
+
+	drawHearts:function() {
+		var str = "";
+		for(i = 0; i < this.heartsNum; ++i) {
+			str = str.concat("<img src=\"images/fullheart.png\"> ");
+		}
+		for(i = 0; i < this.heartsMax - this.heartsMax; ++i) {
+			str = str.concat("<img src=\"images/emptyheart.png\"> ");
+		}
+		$('.hearts').html(str);
+	},
+
+	drawYbullets:function() {
+		var str = "";
+		for(i = 0; i < this.yBulletsNum; ++i) {
+			str = str.concat("<img src=\"images/ybullet.png\"> ");
+		}
+		for(i = 0; i < this.yBulletsMax - this.yBulletsNum; ++i) {
+			str = str.concat("<img src=\"images/emptybullet.png\"> ");
+		}
+		$('.ybullets').html(str);
+	},
+
+	drawGbullets:function() {
+		var str = "";
+		for(i = 0; i < this.gBulletsNum; ++i) {
+			str = str.concat("<img src=\"images/gbullet.png\"> ");
+		}
+		for(i = 0; i < this.gBulletsMax - this.gBulletsNum; ++i) {
+			str = str.concat("<img src=\"images/emptybullet.png\"> ");
+		}
+		$('.gbullets').html(str);
 	},
 
 	drawCharacter:function(key) {
@@ -215,7 +260,7 @@ var gameui = {
 					//remove apple positions from yApples
 					gameui.yApples.splice(ret[1], 2);
 				}
-			}, 4000);
+			}, appleExpiryDuration);
 		}
 	},
 
@@ -238,7 +283,7 @@ var gameui = {
 					//remove apple positions from gApples
 					gameui.gApples.splice(ret[1], 2);
 				}
-			}, 4000);
+			}, appleExpiryDuration);
 		}
 	},
 
@@ -300,6 +345,11 @@ var gameui = {
 							this.clearCharacter(kcharacter);
 							//remove apple positions from yApples
 							this.yApples.splice(ret[1], 2);
+							if(this.yBulletsNum != this.yBulletsMax) {
+								(this.yBulletsNum)++;
+								settings.makeSound("blop");
+								this.drawYbullets();
+							}
 						}
 					}
 				}
@@ -316,6 +366,11 @@ var gameui = {
 							this.clearCharacter(kcharacter);
 							//remove apple positions from gApples
 							this.gApples.splice(ret[1], 2);
+							if(this.gBulletsNum != this.gBulletsMax) {
+								(this.gBulletsNum)++;
+								settings.makeSound("blop");
+								this.drawGbullets();
+							}
 						}
 					}
 				}
@@ -438,6 +493,7 @@ var startscreen= {
 		$('#loading').hide();
 		$('#startgame').hide();
 		$('#tutorial').hide();
+		$('#gametop').hide();
 		setTimeout(function() { $('#startgame').show() }, 700);
 
 		$('#startgame').click(function(){
@@ -472,10 +528,10 @@ var settings = {
 		isSoundOn = true;
 
 		// probably we should load sound the same way we load images
-		var effect = new Audio();
-		effect.src = "sound/applebite.mp3";
-		effect.loop = false;
-		this.soundEffects["applebite"] = effect;
+		this.soundEffects["applebite"] = new Audio();
+		this.soundEffects["applebite"].src = "sound/applebite.mp3";
+		this.soundEffects["blop"] = new Audio();
+		this.soundEffects["blop"].src = "sound/blop.mp3";
 
 		// set the sound button click event
 		$('#sound').click(function(){
