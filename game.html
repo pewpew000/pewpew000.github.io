@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <link href='https://fonts.googleapis.com/css?family=Chivo:900' rel='stylesheet' type='text/css'>
+
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print">
+    <link rel="stylesheet" type="text/css" href="stylesheets/custom.css">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-dark.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/bootstrap-theme.min.css">
+    <link rel="stylesheet" type="text/css" href="stylesheets/bootstrap.min.css">
+
+    <script src="javascripts/jquery-1.11.3.min.js" type="text/javascript" charset="utf-8"></script>
+    <script src="javascripts/game.js" type="text/javascript" charset="utf-8"></script>
+    <script src="javascripts/bootstrap.min.js" type="text/javascript" charset="utf-8"></script>
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <title>Pew Pew 000</title>
+  </head>
+  
+  <body onload="initgame();">
+  <div class="container">
+      <div class="row">
+      <div class="col-md-4">
+        <img src="images/soundon.png" id="sound">
+        <img src="images/playstop.png" id="play">
+        <img src="images/question.png" id="question">
+      </div>
+      <div class="col-md-8">
+        <div class="timer">
+        05:00
+        </div>
+        <div class="hearts">
+        <img src="images/fullheart.png">
+        <img src="images/fullheart.png">
+        <img src="images/fullheart.png">
+        <img src="images/fullheart.png">
+        <img src="images/fullheart.png">
+        </div>
+        <div class="ybullets">
+        <img src="images/ybullet.png">
+        <img src="images/ybullet.png">
+        <img src="images/ybullet.png">
+        <img src="images/emptybullet.png">
+        <img src="images/emptybullet.png">
+        <img src="images/emptybullet.png">
+        </div>
+        <div class="gbullets">
+        <img src="images/gbullet.png">
+        <img src="images/gbullet.png">
+        <img src="images/emptybullet.png">
+        <img src="images/emptybullet.png">
+        </div>
+      </div>
+      </div>
+      <div class="gamecontainer">
+      <div id="startscreen">
+          <div class="col-md-7">
+             <div id="titlescreen">
+             <img src="images/title4.png"> <br/>
+             <img src="images/loading.gif" width="10%" height="10%" id="loading">
+             </div>
+          </div>
+          <div class="col-md-5">
+            <img src="images/startgame.png" id="startgame">
+            <img src="images/bird_front.png", id="birdfront">
+          </div>
+      </div>
+      <div id="tutorial">
+          <h1><strong> How To Play: </strong></h1>
+          You are an elephant who wants to shoot down as many opponents as possible.<br/>
+          Apples give you special power to throw bombs to your opponents.<br/>
+          A green apple gives you a green bomb. <br/>
+          A yellow apple gives you a yellow bomb.<br/>
+          Avoid getting hit by bombs thrown by your opponents and attack them yourself!<br/>
+          <strong>Press arrow keys ← ↑ → ↓ to move</strong><br/>
+          <strong>Press G (green) and Y (yellow) to throw bombs</strong><br/>
+          <br/>
+          <div class="row">
+          <div class="col-md-8">
+            <img src="images/yellowball.png">
+            <img src="images/greenball.png">
+            <img src="images/yellowapple.png">
+            <img src="images/greenapple.png">
+            <br/>
+            <img src="images/elephant.png">
+            <img src="images/cat.png">
+            <img src="images/bee.png">
+            <img src="images/pinkbird.png">
+          </div>
+          <div class="col-md-4">
+            <img src="images/startgame.png", id="startgame2">
+          </div>
+          </div>
+      </div>
+
+      <canvas width = "1200" height = "660" id="gamecanvas">
+           Your browser does not support HTML5 Canvas. Please shift to another browser.
+      </canvas>
+    </div>
+
+    <footer>
+    Music source: http://incompetech.com/music/royalty-free/index.html<br/>
+    Image source: http://www.imagekb.com/2d-game-backgrounds<br/>
+    http://sweetclipart.com<br/>
+    http://cliparts.co/cliparts<br/>
+    http://www.misskatecuttables.com/<br/>
+    www.clipartpanda.com<br/>
+    http://www.clker.com<br/>
+    http://xquatrox.deviantart.com/
+    <div>Icons made by <a href="http://www.flaticon.com/authors/freepik" title="Freepik">Freepik</a> from <a href="http://www.flaticon.com" title="Flaticon">www.flaticon.com</a>             is licensed by <a href="http://creativecommons.org/licenses/by/3.0/" title="Creative Commons BY 3.0">CC BY 3.0</a></div>
+    <div>Icons made by <a href="http://www.flaticon.com/authors/daniel-bruce" title="Daniel Bruce">Daniel Bruce</a> from <a href="http://www.flaticon.com" title="Flaticon">www.flaticon.com</a>             is licensed by <a href="http://creativecommons.org/licenses/by/3.0/" title="Creative Commons BY 3.0">CC BY 3.0</a></div>
+    </footer>
+    </div>
+  </body>
+</html>
