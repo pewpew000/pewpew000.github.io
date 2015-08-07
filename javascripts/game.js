@@ -2,10 +2,12 @@
 // game.js
 //
 
-// Global variables for drawing
+// Global variables for settings
 var moveLimitBy = 300;
 var moveBy = 15;
 var appleExpiryDuration = 40000; //for testing, it's very large
+var moveBombBy = 10;
+var bombDrawRate = 20;
 
 var imageLoader = {
 	loaded:true,
@@ -48,6 +50,76 @@ var imageLoader = {
     }
 }
 
+// this is called inside setInterval
+// bomb element: x, y, dir, image
+function drawBombs() {
+	var i = gameui.bombList.length;
+	console.log("drawBombs: %d", gameui.bombList.length);
+	//go backward as we might remove the bullet
+	while(i--) {
+		var new_x = gameui.bombList[i].x;
+		var new_y = gameui.bombList[i].y;
+		var bulletRemoved = false;
+
+		var img = {
+			x: new_x,
+			y: new_y,
+			image: gameui.bombList[i].image
+		};
+		gameui.clearCharacter(img);
+
+		switch(gameui.bombList[i].dir) {
+			case 39: //right
+			new_x += moveBombBy;
+			break;
+			case 37: //left
+			new_x -= moveBombBy;
+			break;
+			case 38: //up
+			new_y -= moveBombBy;
+			break;
+			case 40: //down
+			new_y += moveBombBy;
+			default:
+			break;
+		}
+
+		img.x = new_x;
+		img.y = new_y;
+
+		gameui.context.drawImage(gameui.bombList[i].image, img.x, img.y);
+
+		// check if the bomb is overlapping with any character
+		for(k in gameui.images) {
+			if(!gameui.isPlayer(k)) {
+				continue;
+			}
+			if(gameui.isOverlapping(img, gameui.images[k])) {
+				// kill the character
+				console.log("whoa");
+				// Clear and remove bullet
+				gameui.clearCharacter(img);
+			}
+		}
+
+		// if reached the end of canvas, clear it and remove from bombList
+		if(gameui.reachedEnd(img)) {
+			// TODO: if there's any item (e.g. apple) you need to redraw
+
+			// clear the bullet and remove from bombList
+			gameui.clearCharacter(img);
+			gameui.bombList.splice(i,1);
+			bulletRemoved = true;
+		}
+
+		if(!bulletRemoved) {
+			gameui.bombList[i].x = new_x;
+			gameui.bombList[i].y = new_y;
+		}
+	}
+}
+
+
 var gameui = {
 	context:0,
 	canvas:0,
@@ -59,8 +131,7 @@ var gameui = {
 	images: {}, //name is probably bit misleading... Also I didn't separate characters from other images. This is associative array of character variables
 	yApples: [],
 	gApples: [],
-	yBalls: [],
-	gBalls: [],
+	bombList: [],
 
 	init:function() {
 		$("body").css("overflow", "hidden"); //disable scroll bar action
@@ -73,8 +144,8 @@ var gameui = {
 					   	   "images/pinkbird.png", "bird",
 					   	   "images/cat.png", "cat",
 					   	   "images/bee.png", "bee",
-					   	   "images/yellowball.png", "yBall",
-					   	   "images/greenball.png", "gBall",
+					   	   "images/yellowball.png", "yBomb",
+					   	   "images/greenball.png", "gBomb",
 					   	   "images/yellowapple.png", "yApple",
 					   	   "images/greenapple.png", "gApple",
 					   	   "images/explosion.png", "explosion" ];
@@ -122,6 +193,13 @@ var gameui = {
 		this.context.drawImage(this.images[key].image, this.images[key].x, this.images[key].y);
 	},
 
+	reachedEnd:function(img) {
+		return ((img.x < 0) ||
+			    ((img.x + img.image.width) > this.canvaswidth) ||
+			    (img.y < 0) ||
+			    ((img.y + img.image.height) > this.canvasheight));
+	},
+
 	updateCharPosn:function(key, x, y) {
 		this.images[key].x = x;
 		this.images[key].y = y;
@@ -136,6 +214,10 @@ var gameui = {
 		this.context.clearRect(img.x, img.y,
 							   img.image.width,
 							   img.image.height);
+	},
+
+	isPlayer:function(key) {
+		return (key === "main" || key === "bird" || key === "cat" || key === "bee");
 	},
 
 	// TODO: Remove redundancy for two apple arrays
@@ -282,29 +364,47 @@ var gameui = {
 		}
 	},
 
-	fireYellowBomb:function(imgkey, dirkey) {
+	fireYellowBomb:function(imgkey, dir) {
 		if(this.images[imgkey].yBulletsNum == 0) {
 			return;
 		}
-		switch(dirkey) {
+		switch(dir) {
 			case 39: //right
+			case 37: //left
 			settings.makeSound("shoot");
-		    case 37: //left
-		    settings.makeSound("shoot");
+			var ybomb = {
+				x: this.images[imgkey].x + this.images[imgkey].image.width,
+				y: this.images[imgkey].y + (Math.max(0, this.images[imgkey].image.height - this.images["yBomb"].image.height) / 2),
+				dir: dir,
+				image: this.images["yBomb"].image
+			};
+			this.bombList.push(ybomb);
+			console.log("bomblist length: %d", this.bombList.length);
+			(this.images[imgkey].yBulletsNum)--;
+			this.drawYbullets();
 		    default:
 		    break;
 		}
 	},
 
-	fireGreenBomb:function(imgkey, dirkey) {
+	fireGreenBomb:function(imgkey, dir) {
 		if(this.images[imgkey].gBulletsNum == 0) {
 			return;
 		}
-		switch(dirkey) {
+		switch(dir) {
 			case 38: //up
-			settings.makeSound("shoot");
 		    case 40: //down
 		    settings.makeSound("shoot");
+		    var gbomb = {
+				x: this.images[imgkey].x + this.images[imgkey].image.width,
+				y: this.images[imgkey].y + (Math.max(0, this.images[imgkey].image.height - this.images["yBomb"].image.height) / 2),
+				dir: dir,
+				image: this.images["gBomb"].image
+			};
+			this.bombList.push(gbomb);
+			console.log("bomblist length: %d", this.bombList.length);
+			(this.images[imgkey].gBulletsNum)--;
+			this.drawGbullets();
 		    default:
 		    break;
 		}
@@ -402,7 +502,7 @@ var gameui = {
 					}
 				}
 			}
-			else if (k === "main" || k === "bird" || k === "cat" || k === "bee") {
+			else if (this.isPlayer(k)) {
 				if (this.isOverlapping(mcharacter, kcharacter)) {
 					return false;
 				}
@@ -504,6 +604,8 @@ function playGame() {
 	gameui.drawHearts();
 	gameui.drawYbullets();
 	gameui.drawGbullets();
+
+	setInterval(drawBombs, bombDrawRate);
 
 	// === init character positions === //
 
