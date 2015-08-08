@@ -738,3 +738,99 @@ function initgame(){
 	settings.init();
 }
 
+/* === data structures for background calculation === */
+// Bullet class
+function Bullet(x, y){
+	this.gBullet = x;
+	this.yBullet = y;
+}
+
+// Position class
+function position(x, y){
+	this.x = x;
+	this.y = y;
+}
+
+position.prototype.set = function(pos_x, pos_y){
+	this.x = pos_x;
+	this.y = pos_y;
+}
+
+position.prototype.setx = function(pos_x){
+	this.x = pos_x;
+}
+
+position.prototype.sety = function(pox_y){
+	this.y = pos_y;
+}
+
+position.prototype.getx = function(){
+	return this.x;
+}
+
+position.prototype.gety = function(){
+	return this.y;
+}
+
+// apple class
+function apple(x, y){
+	this.x = x;
+	this.y = y;
+	this.edible = true;
+}
+
+// action class
+function event(time, player, action){
+	this.time = time;
+	this.player = player;
+	this.action = action;
+}
+
+event.prototype.gettime = function(){
+	return this.time;
+}
+
+event.prototype.getplayer = function(){
+	return this.player;
+}
+
+event.prototype.getaction = function(){
+	return this.action;
+}
+
+// world_state class
+function world_state(){
+	this.player_pos = [];
+	this.dead = [];
+	this.Bullets = [];
+	this.Apples = [];
+}
+
+world_state.prototype.init = function(){
+	for(var i = 0; i < 4; i++){
+		// load player_pos
+		
+		
+		// load if dead
+		this.dead.push(0);
+		
+		// load bullets info
+		this.Bullet.push(new Bullet(0, 0));
+	}
+
+	// load apple info
+	
+	// set time interval, generate apples every 5 seconds
+
+}
+
+world_state.prototype.apply = function(action){
+	// judge if dead first
+
+	// judge if ate any apple
+
+	// judge if killed anyone
+
+	// update corresponding data
+
+}
