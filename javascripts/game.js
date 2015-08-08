@@ -9,6 +9,9 @@ var appleExpiryDuration = 40000; //for testing, it's very large
 var moveBombBy = 10;
 var bombDrawRate = 20;
 
+// Global variables for background calculation
+var world_states = new Array(3);
+
 var imageLoader = {
 	loaded:true,
     loadedImages:0,
@@ -29,7 +32,36 @@ var imageLoader = {
     			image: image,
     			yBulletsNum: 3,
     			gBulletsNum: 2,
-    			heartsNum: 5
+    			heartsNum: 5,
+
+				getx : function(){
+					return this.x;
+				},
+
+				gety : function(){
+					return this.y;
+				},
+
+				getminx : function(){
+					return this.min_x;
+				},
+
+				getmaxx : function(){
+					return this.max_x;
+				},
+
+				getyBullet : function(){
+					return this.yBulletsNum;
+				},
+
+				getgBullet : function(){
+					return this.gBulletsNum;
+				},
+
+				getLife : function(){
+					return this.heartsNum;
+				}
+
     		}
     		//gameui.images.push(character);
     		//gameui.images[idx] = character;
@@ -679,6 +711,11 @@ function playGame() {
 		gameui.drawRandomGreenApple();
 		gameui.drawRandomYellowApple();
 	}
+
+	// === Let world state copy data from here === //
+	for (var j = 0; j < 3; j++)
+		world_states[0] = new world_state();
+	
 }
 
 var startscreen= {
@@ -831,16 +868,17 @@ function world_state(){
 world_state.prototype.init = function(){
 	for(var i = 0; i < 4; i++){
 		// load player_pos
-		
+		this.player_pos.push( new position(gameui.images[i].getx(), gameui.images[i].gety()) );
 		
 		// load if dead
 		this.dead.push(0);
 		
 		// load bullets info
-		this.Bullet.push(new Bullet(0, 0));
+		this.Bullet.push(new Bullet(gameui.images[i].getyBullet(), gameui.images[i].getgBullet()));
 	}
 
 	// load apple info
+	this.Apples.push();
 	
 	// set time interval, generate apples every 5 seconds
 
@@ -848,9 +886,27 @@ world_state.prototype.init = function(){
 
 world_state.prototype.apply = function(action){
 	// judge if dead first
+	if(this.dead[action.player()])
+		return;
+
+	// do the action
+	switch(action.action){
+		case 38:	// UP
+		break;
+		case 40:	// DOWN
+		break;
+		case 37:	// LEFT
+		break;
+		case 39:	// RIGHT
+		break;
+		case 65:	// FIRE
+		break;
+		default:
+		return;
+	}
 
 	// judge if ate any apple
-
+	
 	// judge if killed anyone
 
 	// update corresponding data
