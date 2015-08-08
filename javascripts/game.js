@@ -8,6 +8,7 @@ var moveBy = 15;
 var appleExpiryDuration = 40000; //for testing, it's very large
 var moveBombBy = 10;
 var bombDrawRate = 20;
+var bombInterval = null;
 
 var imageLoader = {
 	loaded:true,
@@ -240,10 +241,16 @@ var gameui = {
 
 	damageCharacter:function(key) {
 		(this.images[key].heartsNum)--;
+		if(key === "main") {
+			this.drawHearts();
+		}
 		if(this.images[key].heartsNum == 0) {
 			//dead
 			settings.makeSound("dead");
 			this.clearCharacter(this.images[key]);
+			if(key === "main") {
+				// TODO: indicate game over
+			}
 		}
 		else {
 			settings.makeSound("hiccup");
@@ -645,7 +652,7 @@ function playGame() {
 	gameui.drawYbullets();
 	gameui.drawGbullets();
 
-	setInterval(drawBombs, bombDrawRate);
+	bombInterval = setInterval(drawBombs, bombDrawRate);
 
 	// === init character positions === //
 
