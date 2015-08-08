@@ -68,6 +68,30 @@ function drawBombs() {
 		};
 		gameui.clearCharacter(img);
 
+		// check if the bomb is overlapping with any apple, if so, redraw apple
+		for (j=0; j < gameui.yApples.length; j+=2) {
+			var kapple = {
+				x: gameui.yApples[j],
+				y: gameui.yApples[j+1],
+				image: gameui.images["yApple"].image
+			}
+			if (gameui.isOverlapping(img, kapple)) {
+				gameui.context.drawImage(gameui.images["yApple"].image, kapple.x, kapple.y);
+				break;
+			}
+		}
+		for (j=0; j < gameui.gApples.length; j+=2) {
+			var kapple = {
+				x: gameui.gApples[j],
+				y: gameui.gApples[j+1],
+				image: gameui.images["gApple"].image
+			}
+			if (gameui.isOverlapping(img, kapple)) {
+				gameui.context.drawImage(gameui.images["gApple"].image, kapple.x, kapple.y);
+				break;
+			}
+		}
+
 		switch(gameui.bombList[i].dir) {
 			case 39: //right
 			new_x += moveBombBy;
@@ -101,8 +125,6 @@ function drawBombs() {
 				bulletRemoved = true;
 			}
 		}
-
-		// TODO: check if the bomb is overlapping with any apple, if so, redraw apple
 
 		// if reached the end of canvas, clear it and remove from bombList
 		if(gameui.reachedEnd(img)) {
