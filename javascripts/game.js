@@ -227,6 +227,9 @@ function GameUI (myCharacter) {
 	this.playerStates["yApple"] = { x: 0, y: 0, image: images["yApple"] };
 	this.playerStates["gApple"] = { x: 0, y: 0, image: images["gApple"] };
 
+	// === drawHearts === //
+	//   Draw the # of hears that the main character has
+
 	this.drawHearts = function() { //only for the main character
 		if(this.myCharacter != mainCharacter) {
 			return;
@@ -240,6 +243,9 @@ function GameUI (myCharacter) {
 		}
 		$('.hearts').html(str);
 	};
+
+	// === drawYbullets === //
+	//   Draw the # of yellow bullets that the main character has
 
 	this.drawYbullets = function() { //only for the main character
 		if(this.myCharacter != mainCharacter) {
@@ -255,6 +261,9 @@ function GameUI (myCharacter) {
 		$('.ybullets').html(str);
 	};
 
+	// === drawGbullets === //
+	//   Draw the # of green bullets that the main character has
+
 	this.drawGbullets = function() { //only for the main character
 		if(this.myCharacter != mainCharacter) {
 			return;
@@ -269,12 +278,18 @@ function GameUI (myCharacter) {
 		$('.gbullets').html(str);
 	};
 
+	// === drawCharacter === //
+	//   Draw a character. x and y coordinates int he playerStates should be set
+
 	this.drawCharacter = function(key) {
 		if(this.myCharacter != mainCharacter) {
 			return;
 		}
 		context.drawImage(images[key], this.playerStates[key].x, this.playerStates[key].y);
 	};
+
+	// === clearCharacter === //
+	//   Clear a character
 
 	this.clearCharacter = function(img) {
 		if(this.myCharacter != mainCharacter) {
@@ -285,15 +300,24 @@ function GameUI (myCharacter) {
 						  img.image.height);
 	};
 
+	// === updateCharPosn === //
+	//   Update the x, y coordinates of a character
+
 	this.updateCharPosn = function(key, x, y) {
 		this.playerStates[key].x = x;
 		this.playerStates[key].y = y;
 	};
 
+	// === updatePosnLimit === //
+	//   Not in use
+
 	this.updatePosnLimit = function(key, min_x, max_x) {
 		this.playerStates[key].min_x = min_x;
 		this.playerStates[key].max_x = max_x;
 	};
+
+	// === damageCharacter === //
+	//   Damage a character of the given key
 
 	this.damageCharacter = function(key) {
 		(this.playerStates[key].heartsNum)--;
@@ -311,11 +335,21 @@ function GameUI (myCharacter) {
 		}
 	};
 
+	// === isPlayer === //
+	//   Return whether the key is one of the players
+
 	this.isPlayer = function(key) {
 		return (key === "elephant" || key === "bird" || key === "cat" || key === "bee");
 	};
 
 	// TODO: Remove redundancy for two apple arrays
+
+	// === getRandomAppleLocation === //
+ 	//   Get a random apple location
+ 	//   This random location should take into player's positions, and apples that were already drawn
+ 	//
+ 	//   WARNING! This function should be called only by the server!
+
 	this.getRandomAppleLocation = function() {
 		var coord = [];
 		var invalidCoord = false;
@@ -387,6 +421,10 @@ function GameUI (myCharacter) {
 		return coord;
 	};
 
+	// === isCharacterAt === //
+	//   Given an image and key, check if the image is still there
+	//   e.g. if someone already ate an apple, it shouldn't be cleared at timeout
+
 	this.isCharacterAt = function(img, key) {
 		switch(key) {
 			case "yApple":
@@ -410,10 +448,15 @@ function GameUI (myCharacter) {
 		return [false];
 	};
 
-	//TODO: Remove redundancy btw drawRandomYellowApple & drawRandomGreenApple
+	//TODO: Remove redundancy btw drawYellowApple & drawGreenApple
 	// if list can be passed/accessed by reference
-	this.drawRandomYellowApple = function() {
-		var coord = this.getRandomAppleLocation();
+
+	// === drawYellowApple === //
+	//   Given a coordinate of the yellow apple, draw the apple.
+	//   Set a timeout at a fixed value of appleExpiryDuration
+
+	this.drawYellowApple = function(coord) {
+		//var coord = this.getRandomAppleLocation();
 		if(coord.length > 0) {
 			this.updateCharPosn("yApple", coord[0], coord[1]);
 			this.drawCharacter("yApple");
@@ -437,8 +480,12 @@ function GameUI (myCharacter) {
 		}
 	};
 
-	this.drawRandomGreenApple = function() {
-		var coord = this.getRandomAppleLocation();
+	// === drawGreenApple === //
+	//   Given a coordinate of the green apple, draw the apple.
+	//   Set a timeout at a fixed value of appleExpiryDuration
+
+	this.drawGreenApple = function(coord) {
+		//var coord = this.getRandomAppleLocation();
 		if(coord.length > 0) {
 			this.updateCharPosn("gApple", coord[0], coord[1]);
 			this.drawCharacter("gApple");
@@ -460,6 +507,11 @@ function GameUI (myCharacter) {
 			}, appleExpiryDuration);
 		}
 	};
+
+	// === fireYellowBomb === //
+	//   Whoever fires a yellow bomb, is given by the imgkey (e.g. "bee").
+	//   Given the fire direction, add the bomb into the bomblist
+	//   The bomblist elements are printed at every bombDrawRate by DrawBombs()
 
 	this.fireYellowBomb = function(imgkey, dir) {
 		if((this.playerStates[imgkey].yBulletsNum == 0) || (dir != 39 && dir != 37))
@@ -485,6 +537,11 @@ function GameUI (myCharacter) {
 		this.drawYbullets();
 	};
 
+	// === fireGreenBomb === //
+	//   Whoever fires a green bomb, is given by the imgkey (e.g. "bee").
+	//   Given the fire direction, add the bomb into the bomblist
+	//   The bomblist elements are printed at every bombDrawRate by DrawBombs()
+
 	this.fireGreenBomb = function(imgkey, dir) {
 		if(this.playerStates[imgkey].gBulletsNum == 0 || (dir != 38 && dir != 40))
 		{
@@ -508,6 +565,10 @@ function GameUI (myCharacter) {
 		(this.playerStates[imgkey].gBulletsNum)--;
 		this.drawGbullets();
 	};
+
+	// === canMove === //
+	//   Returns true or false whether the character of the given key can move into the given coordinates, x and y.
+	//   If there's an apple in the way, eat the apple
 
 	this.canMove = function(key, x, y) {
 		// if (x < this.playerStates[key].min_x || x > this.playerStates[key].max_x) {
@@ -534,6 +595,9 @@ function GameUI (myCharacter) {
 
 			//TODO: I don't really know about how to access reference of something in javascript
 			// I can remove redundancy in the code later if find that out
+
+			// If a character encounters an apple while moving, it has to eat it
+			// Go through the apple arrays to see if the character is overlapping with any apples
 			if (k === "yApple") {
 				for(i = 0; i < this.yApples.length; i+=2) {
 					kcharacter.x = this.yApples[i];
@@ -576,6 +640,7 @@ function GameUI (myCharacter) {
 					}
 				}
 			}
+			// if overlapping with another player, return false (it can't move)
 			else if (this.isPlayer(k)) {
 				if (isOverlapping(mcharacter, kcharacter)) {
 					return false;
@@ -624,6 +689,9 @@ function GameUI (myCharacter) {
 		}
 	};
 }
+
+// === keyHandler ===//
+//  Key press only affects the main character
 
 var keyHandler = {
 	Wkeydown: false,
@@ -711,8 +779,14 @@ function playGame() {
 	// === Real game logic starts === //
 	keyHandler.init();
 	for(i=0; i < 10; ++i) {
-		mainPlayer.drawRandomGreenApple();
-		mainPlayer.drawRandomYellowApple();
+		var coord = mainPlayer.getRandomAppleLocation();
+		if(coord.length > 0) {
+			mainPlayer.drawGreenApple(mainPlayer.getRandomAppleLocation());
+		}
+		coord = mainPlayer.getRandomAppleLocation();
+		if(coord.length > 0) {
+			mainPlayer.drawYellowApple(mainPlayer.getRandomAppleLocation());
+		}
 	}
 
 	// === Let world state copy data from here === //
@@ -724,7 +798,7 @@ function playGame() {
 	
 }
 
-var startscreen= {
+var startscreen = {
 	init: function(){
 		$('.gamelayer').hide();
 		$('#titlescreen').show();
