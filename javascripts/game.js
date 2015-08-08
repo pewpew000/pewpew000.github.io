@@ -9,6 +9,9 @@ var appleExpiryDuration = 40000; //for testing, it's very large
 var moveBombBy = 10;
 var bombDrawRate = 20;
 var bombInterval = null;
+var images = {};
+var mainPlayer; //GameUI object
+var mainCharacter = "elephant";
 
 // Global variables for background calculation
 var world_states = new Array(3);
@@ -25,20 +28,7 @@ var imageLoader = {
     	this.totalImages++;
 
     	image.onload = function() {
-    		var character = {
-    			x: 0,
-    			y: 0,
-    			min_x: 0,
-    			max_x: 0,
-    			image: image,
-    			yBulletsNum: 3,
-    			gBulletsNum: 2,
-    			heartsNum: 5,
-    		}
-    		//gameui.images.push(character);
-    		//gameui.images[idx] = character;
-    		gameui.images[key] = character;
-
+    		images[key] = image;
     		imageLoader.loadedImages++;
     		if(imageLoader.loadedImages === imageLoader.totalImages) {
     			imageLoader.loaded = true;
@@ -56,47 +46,48 @@ var imageLoader = {
 
 // this is called inside setInterval
 // bomb element: x, y, dir, image
+//THIS SHOULD CHANGE
 function drawBombs() {
-	var i = gameui.bombList.length;
-	console.log("drawBombs: %d", gameui.bombList.length);
+	var i = mainPlayer.bombList.length;
+	console.log("drawBombs: %d", mainPlayer.bombList.length);
 	//go backward as we might remove the bullet
 	while(i--) {
-		var new_x = gameui.bombList[i].x;
-		var new_y = gameui.bombList[i].y;
+		var new_x = mainPlayer.bombList[i].x;
+		var new_y = mainPlayer.bombList[i].y;
 		var bulletRemoved = false;
 
 		var img = {
 			x: new_x,
 			y: new_y,
-			image: gameui.bombList[i].image
+			image: mainPlayer.bombList[i].image
 		};
-		gameui.clearCharacter(img);
+		mainPlayer.clearCharacter(img);
 
 		// check if the bomb is overlapping with any apple, if so, redraw apple
-		for (j=0; j < gameui.yApples.length; j+=2) {
+		for (j=0; j < mainPlayer.yApples.length; j+=2) {
 			var kapple = {
-				x: gameui.yApples[j],
-				y: gameui.yApples[j+1],
-				image: gameui.images["yApple"].image
+				x: mainPlayer.yApples[j],
+				y: mainPlayer.yApples[j+1],
+				image: images["yApple"]
 			}
-			if (gameui.isOverlapping(img, kapple)) {
-				gameui.context.drawImage(gameui.images["yApple"].image, kapple.x, kapple.y);
+			if (isOverlapping(img, kapple)) {
+				context.drawImage(images["yApple"], kapple.x, kapple.y);
 				break;
 			}
 		}
-		for (j=0; j < gameui.gApples.length; j+=2) {
+		for (j=0; j < mainPlayer.gApples.length; j+=2) {
 			var kapple = {
-				x: gameui.gApples[j],
-				y: gameui.gApples[j+1],
-				image: gameui.images["gApple"].image
+				x: mainPlayer.gApples[j],
+				y: mainPlayer.gApples[j+1],
+				image: images["gApple"]
 			}
-			if (gameui.isOverlapping(img, kapple)) {
-				gameui.context.drawImage(gameui.images["gApple"].image, kapple.x, kapple.y);
+			if (isOverlapping(img, kapple)) {
+				context.drawImage(images["gApple"], kapple.x, kapple.y);
 				break;
 			}
 		}
 
-		switch(gameui.bombList[i].dir) {
+		switch(mainPlayer.bombList[i].dir) {
 			case 39: //right
 			new_x += moveBombBy;
 			break;
@@ -116,156 +107,216 @@ function drawBombs() {
 		img.y = new_y;
 
 		// check if the bomb is overlapping with any character
-		for(k in gameui.images) {
-			if(!gameui.isPlayer(k)) {
+		for(k in mainPlayer.playerStates) {
+			if(!mainPlayer.isPlayer(k)) {
 				continue;
 			}
-			if(gameui.isOverlapping(img, gameui.images[k])) {
+			if(isOverlapping(img, mainPlayer.playerStates[k])) {
 				// damage the character
-				gameui.damageCharacter(k);
+				mainPlayer.damageCharacter(k);
 
 				// Remove bullet
-				gameui.bombList.splice(i,1);
+				mainPlayer.bombList.splice(i,1);
 				bulletRemoved = true;
 			}
 		}
 
 		// if reached the end of canvas, clear it and remove from bombList
-		if(gameui.reachedEnd(img)) {
+		if(reachedEnd(img)) {
 			// clear the bullet and remove from bombList
-			gameui.bombList.splice(i,1);
+			mainPlayer.bombList.splice(i,1);
 			bulletRemoved = true;
 		}
 
 		if(!bulletRemoved) {
-			gameui.context.drawImage(gameui.bombList[i].image, img.x, img.y);
-			gameui.bombList[i].x = new_x;
-			gameui.bombList[i].y = new_y;
+			context.drawImage(mainPlayer.bombList[i].image, img.x, img.y);
+			mainPlayer.bombList[i].x = new_x;
+			mainPlayer.bombList[i].y = new_y;
 		}
 	}
 }
 
+var context = 0;
+var canvas = 0;
+var canvaswidth = 0;
+var canvasheight = 0;
 
-var gameui = {
-	context:0,
-	canvas:0,
-	canvaswidth:0,
-	canvasheight:0,
-	yBulletsMax:6,
-	gBulletsMax:4,
-	heartsMax:5,
-	images: {}, //name is probably bit misleading... Also I didn't separate characters from other images. This is associative array of character variables
-	yApples: [],
-	gApples: [],
-	bombList: [],
+function initUI() {
+	$("body").css("overflow", "hidden"); //disable scroll bar action
+	canvas = document.getElementById("gamecanvas");
+	context = canvas.getContext("2d");
+	canvaswidth = canvas.getAttribute("width");
+	canvasheight = canvas.getAttribute("height");
 
-	init:function() {
-		$("body").css("overflow", "hidden"); //disable scroll bar action
-		this.canvas = document.getElementById("gamecanvas");
-		this.context = this.canvas.getContext("2d");
-		this.canvaswidth = this.canvas.getAttribute("width");
-		this.canvasheight = this.canvas.getAttribute("height");
+	var imagesSrcs = [ "images/elephant.png", "elephant",
+				   	   "images/pinkbird.png", "bird",
+				   	   "images/cat.png", "cat",
+				   	   "images/bee.png", "bee",
+				   	   "images/yellowball.png", "yBomb",
+				   	   "images/greenball.png", "gBomb",
+				   	   "images/yellowapple.png", "yApple",
+				   	   "images/greenapple.png", "gApple",
+				   	   "images/explosion.png", "explosion" ];
 
-		var imagesSrcs = [ "images/elephant.png", "main",
-					   	   "images/pinkbird.png", "bird",
-					   	   "images/cat.png", "cat",
-					   	   "images/bee.png", "bee",
-					   	   "images/yellowball.png", "yBomb",
-					   	   "images/greenball.png", "gBomb",
-					   	   "images/yellowapple.png", "yApple",
-					   	   "images/greenapple.png", "gApple",
-					   	   "images/explosion.png", "explosion" ];
+	for(i=0; i < imagesSrcs.length; i++) {
+		imageLoader.load(imagesSrcs[i], imagesSrcs[i+1]);
+		i++;
+	}
+}
 
-		for(i=0; i < imagesSrcs.length; i++) {
-			imageLoader.load(imagesSrcs[i], imagesSrcs[i+1]);
-			i++;
+// === Some general image functions === //
+
+//
+// isOverlapping:
+//   Given img1, img2 as variables that each contains, x, y, and image
+//   e.g. var img1 = { x:0, y:0, image: images["elephant"] }
+//   it returns either true or false whether two images are overlapping
+//
+function isOverlapping (img1, img2) {
+		var mx = img1.x;
+		var mxw = mx + img1.image.width;
+		var my = img1.y;
+		var myh = my + img1.image.height;
+
+		var kx = img2.x;
+		var kxw = kx + img2.image.width;
+		var ky = img2.y;
+		var kyh = ky + img2.image.height;
+
+		//console.log("mx: %d, mxw: %d, my: %d, myh: %d", mx, mxw, my, myh);
+		//console.log("kx: %d, kxw: %d, ky: %d, kyh: %d", kx, kxw, ky, kyh);
+
+		if (!(kxw < mx || kx > mxw) &&
+			!(kyh < my || ky > myh))  {
+			return true;
 		}
-	},
+		return false;
+}
 
-	drawHearts:function() { //only for the main character
+// reachedEnd:
+//    Given img that each contains x, y, and image
+//    e.g. var img1 = { x:0, y:0, image: images["elephant"] }
+//    returns either true or false whether the image has reached the end of canvas of any side
+//
+function reachedEnd(img) {
+	return ((img.x < 0) ||
+		    ((img.x + img.image.width) > canvaswidth) ||
+		    (img.y < 0) ||
+		    ((img.y + img.image.height) > canvasheight));
+}
+
+// === GameUI === //
+// Player object
+
+function GameUI (myCharacter) {
+
+	this.myCharacter = myCharacter;
+	this.yBulletsMax = 6;
+	this.gBulletsMax = 4;
+	this.heartsMax = 5;
+
+	this.yApples = [];
+	this.gApples = [];
+	this.bombList = [];
+
+	this.playerStates = {};
+	this.playerStates["elephant"] = { x: 0, y: 0, yBulletsNum: 3, gBulletsNum: 2, heartsNum: 5, image: images["elephant"] };
+	this.playerStates["bee"] = { x: 0, y: 0, yBulletsNum: 3, gBulletsNum: 2, heartsNum: 5, image: images["bee"] };
+	this.playerStates["cat"] = { x: 0, y: 0, yBulletsNum: 3, gBulletsNum: 2, heartsNum: 5, image: images["cat"] };
+	this.playerStates["bird"] = { x: 0, y: 0, yBulletsNum: 3, gBulletsNum: 2, heartsNum: 5, image: images["bird"] };
+	this.playerStates["yApple"] = { x: 0, y: 0, image: images["yApple"] };
+	this.playerStates["gApple"] = { x: 0, y: 0, image: images["gApple"] };
+
+	this.drawHearts = function() { //only for the main character
+		if(this.myCharacter != mainCharacter) {
+			return;
+		}
 		var str = "";
-		for(i = 0; i < this.images["main"].heartsNum; ++i) {
+		for(i = 0; i < this.playerStates[this.myCharacter].heartsNum; ++i) {
 			str = str.concat("<img src=\"images/fullheart.png\"> ");
 		}
-		for(i = 0; i < this.heartsMax - this.images["main"].heartsNum; ++i) {
+		for(i = 0; i < this.heartsMax - this.playerStates[this.myCharacter].heartsNum; ++i) {
 			str = str.concat("<img src=\"images/emptyheart.png\"> ");
 		}
 		$('.hearts').html(str);
-	},
+	};
 
-	drawYbullets:function() { //only for the main character
+	this.drawYbullets = function() { //only for the main character
+		if(this.myCharacter != mainCharacter) {
+			return;
+		}
 		var str = "";
-		for(i = 0; i < this.images["main"].yBulletsNum; ++i) {
+		for(i = 0; i < this.playerStates[this.myCharacter].yBulletsNum; ++i) {
 			str = str.concat("<img src=\"images/ybullet.png\"> ");
 		}
-		for(i = 0; i < this.yBulletsMax - this.images["main"].yBulletsNum; ++i) {
+		for(i = 0; i < this.yBulletsMax - this.playerStates[this.myCharacter].yBulletsNum; ++i) {
 			str = str.concat("<img src=\"images/emptybullet.png\"> ");
 		}
 		$('.ybullets').html(str);
-	},
+	};
 
-	drawGbullets:function() { //only for the main character
+	this.drawGbullets = function() { //only for the main character
+		if(this.myCharacter != mainCharacter) {
+			return;
+		}
 		var str = "";
-		for(i = 0; i < this.images["main"].gBulletsNum; ++i) {
+		for(i = 0; i < this.playerStates[this.myCharacter].gBulletsNum; ++i) {
 			str = str.concat("<img src=\"images/gbullet.png\"> ");
 		}
-		for(i = 0; i < this.gBulletsMax - this.images["main"].gBulletsNum; ++i) {
+		for(i = 0; i < this.gBulletsMax - this.playerStates[this.myCharacter].gBulletsNum; ++i) {
 			str = str.concat("<img src=\"images/emptybullet.png\"> ");
 		}
 		$('.gbullets').html(str);
-	},
+	};
 
-	drawCharacter:function(key) {
-		this.context.drawImage(this.images[key].image, this.images[key].x, this.images[key].y);
-	},
-
-	reachedEnd:function(img) {
-		return ((img.x < 0) ||
-			    ((img.x + img.image.width) > this.canvaswidth) ||
-			    (img.y < 0) ||
-			    ((img.y + img.image.height) > this.canvasheight));
-	},
-
-	updateCharPosn:function(key, x, y) {
-		this.images[key].x = x;
-		this.images[key].y = y;
-	},
-
-	updatePosnLimit:function(key, min_x, max_x) {
-		this.images[key].min_x = min_x;
-		this.images[key].max_x = max_x;
-	},
-
-	clearCharacter:function(img) {
-		this.context.clearRect(img.x, img.y,
-							   img.image.width,
-							   img.image.height);
-	},
-
-	damageCharacter:function(key) {
-		(this.images[key].heartsNum)--;
-		if(key === "main") {
-			this.drawHearts();
+	this.drawCharacter = function(key) {
+		if(this.myCharacter != mainCharacter) {
+			return;
 		}
-		if(this.images[key].heartsNum == 0) {
+		context.drawImage(images[key], this.playerStates[key].x, this.playerStates[key].y);
+	};
+
+	this.clearCharacter = function(img) {
+		if(this.myCharacter != mainCharacter) {
+			return;
+		}
+		context.clearRect(img.x, img.y,
+						  img.image.width,
+						  img.image.height);
+	};
+
+	this.updateCharPosn = function(key, x, y) {
+		this.playerStates[key].x = x;
+		this.playerStates[key].y = y;
+	};
+
+	this.updatePosnLimit = function(key, min_x, max_x) {
+		this.playerStates[key].min_x = min_x;
+		this.playerStates[key].max_x = max_x;
+	};
+
+	this.damageCharacter = function(key) {
+		(this.playerStates[key].heartsNum)--;
+		this.drawHearts();
+		if(this.playerStates[key].heartsNum == 0) {
 			//dead
 			settings.makeSound("dead");
-			this.clearCharacter(this.images[key]);
-			if(key === "main") {
+			this.clearCharacter(this.playerStates[key]);
+			if(key === this.myCharacter) {
 				// TODO: indicate game over
 			}
 		}
 		else {
 			settings.makeSound("hiccup");
 		}
-	},
+	};
 
-	isPlayer:function(key) {
-		return (key === "main" || key === "bird" || key === "cat" || key === "bee");
-	},
+	this.isPlayer = function(key) {
+		return (key === "elephant" || key === "bird" || key === "cat" || key === "bee");
+	};
 
 	// TODO: Remove redundancy for two apple arrays
-	getRandomAppleLocation:function() {
+	this.getRandomAppleLocation = function() {
 		var coord = [];
 		var invalidCoord = false;
 		var maxTry = 6;
@@ -276,24 +327,24 @@ var gameui = {
 				coord = [];
 				break;
 			}
-			coord[0] = Math.max(0, Math.floor(Math.random() * this.canvaswidth) - this.images["yApple"].image.width);
-			coord[1] = Math.max(0, Math.floor(Math.random() * this.canvasheight) - this.images["yApple"].image.height);
+			coord[0] = Math.max(0, Math.floor(Math.random() * canvaswidth) - images["yApple"].width);
+			coord[1] = Math.max(0, Math.floor(Math.random() * canvasheight) - images["yApple"].height);
 			var newapple = {
 				x: coord[0],
 				y: coord[1],
-				image: this.images["yApple"].image // do this because apple sizes are the same
+				image: images["yApple"] // do this because apple sizes are the same
 			}
 			// check if it's overlapping with any character
-			for (var k in this.images) {
-				if (!(k === "main" || k === "bird" || k === "bee" || k === "cat")) {
+			for (var k in this.playerStates) {
+				if (!(k === "elephant" || k === "bird" || k === "bee" || k === "cat")) {
 					continue;
 				}
 				var kcharacter = {
-					x: this.images[k].x,
-					y: this.images[k].y,
-					image: this.images[k].image
+					x: this.playerStates[k].x,
+					y: this.playerStates[k].y,
+					image: images[k]
 				};
-				if (this.isOverlapping(newapple, kcharacter)) {
+				if (isOverlapping(newapple, kcharacter)) {
 					invalidCoord = true;
 					break;
 				}
@@ -306,9 +357,9 @@ var gameui = {
 				var kapple = {
 					x: this.yApples[i],
 					y: this.yApples[i+1],
-					image: this.images["yApple"].image
+					image: images["yApple"]
 				}
-				if (this.isOverlapping(newapple, kapple)) {
+				if (isOverlapping(newapple, kapple)) {
 					invalidCoord = true;
 					break;
 				}
@@ -320,9 +371,9 @@ var gameui = {
 				var kapple = {
 					x: this.gApples[i],
 					y: this.gApples[i+1],
-					image: this.images["gApple"].image
+					image: images["gApple"]
 				}
-				if (this.isOverlapping(newapple, kapple)) {
+				if (isOverlapping(newapple, kapple)) {
 					invalidCoord = true;
 					break;
 				}
@@ -334,9 +385,9 @@ var gameui = {
 		}
 		console.log("coord: %d, %d", coord[0], coord[1]);
 		return coord;
-	},
+	};
 
-	isCharacterAt:function(img, key) {
+	this.isCharacterAt = function(img, key) {
 		switch(key) {
 			case "yApple":
 				for (i=0; i < this.yApples.length; i+=2) {
@@ -357,11 +408,11 @@ var gameui = {
 			break;
 		}
 		return [false];
-	},
+	};
 
 	//TODO: Remove redundancy btw drawRandomYellowApple & drawRandomGreenApple
 	// if list can be passed/accessed by reference
-	drawRandomYellowApple:function() {
+	this.drawRandomYellowApple = function() {
 		var coord = this.getRandomAppleLocation();
 		if(coord.length > 0) {
 			this.updateCharPosn("yApple", coord[0], coord[1]);
@@ -372,20 +423,21 @@ var gameui = {
 			var img = {
 				x: coord[0],
 				y: coord[1],
-				image: this.images["yApple"].image
+				image: images["yApple"]
 			}
+			//THIS SHOULD CHANGE!
 			setTimeout(function() {
-				var ret = gameui.isCharacterAt(img, "yApple");
+				var ret = mainPlayer.isCharacterAt(img, "yApple");
 				if(ret[0] == true) {
-					gameui.clearCharacter(img);
+					this.clearCharacter(img);
 					//remove apple positions from yApples
-					gameui.yApples.splice(ret[1], 2);
+					mainPlayer.yApples.splice(ret[1], 2);
 				}
 			}, appleExpiryDuration);
 		}
-	},
+	};
 
-	drawRandomGreenApple:function() {
+	this.drawRandomGreenApple = function() {
 		var coord = this.getRandomAppleLocation();
 		if(coord.length > 0) {
 			this.updateCharPosn("gApple", coord[0], coord[1]);
@@ -395,113 +447,89 @@ var gameui = {
 			var img = {
 				x: coord[0],
 				y: coord[1],
-				image: this.images["gApple"].image
+				image: images["gApple"]
 			}
+			//THIS SHOULD CHANGE!
 			setTimeout(function() {
-				var ret = gameui.isCharacterAt(img, "gApple");
+				var ret = mainPlayer.isCharacterAt(img, "gApple");
 				if(ret[0] == true) {
-					gameui.clearCharacter(img);
+					this.clearCharacter(img);
 					//remove apple positions from gApples
-					gameui.gApples.splice(ret[1], 2);
+					mainPlayer.gApples.splice(ret[1], 2);
 				}
 			}, appleExpiryDuration);
 		}
-	},
+	};
 
-	fireYellowBomb:function(imgkey, dir) {
-		if((this.images[imgkey].yBulletsNum == 0) || (dir != 39 && dir != 37))
+	this.fireYellowBomb = function(imgkey, dir) {
+		if((this.playerStates[imgkey].yBulletsNum == 0) || (dir != 39 && dir != 37))
 		{
 			return;
 		}
 
 		settings.makeSound("shoot");
 		var ybomb = {
-				x: this.images[imgkey].x,
-				y: this.images[imgkey].y + (Math.max(0, this.images[imgkey].image.height - this.images["yBomb"].image.height) / 2),
+				x: this.playerStates[imgkey].x,
+				y: this.playerStates[imgkey].y + (Math.max(0, images[imgkey].height - images["yBomb"].height) / 2),
 				dir: dir,
-				image: this.images["yBomb"].image
+				image: images["yBomb"]
 		};
 
 		if(dir === 39) { //right
-			ybomb.x += this.images[imgkey].image.width;
+			ybomb.x += images[imgkey].width;
 		} else { //left
-			ybomb.x -= this.images["yBomb"].image.width;
+			ybomb.x -= images["yBomb"].width;
 		}
 		this.bombList.push(ybomb);
-		(this.images[imgkey].yBulletsNum)--;
-		if(imgkey === "main") {
-			this.drawYbullets();
-		}
-	},
+		(this.playerStates[imgkey].yBulletsNum)--;
+		this.drawYbullets();
+	};
 
-	fireGreenBomb:function(imgkey, dir) {
-		if(this.images[imgkey].gBulletsNum == 0 || (dir != 38 && dir != 40))
+	this.fireGreenBomb = function(imgkey, dir) {
+		if(this.playerStates[imgkey].gBulletsNum == 0 || (dir != 38 && dir != 40))
 		{
 			return;
 		}
 
 		settings.makeSound("shoot");
 		var gbomb = {
-				x: this.images[imgkey].x + (this.images[imgkey].image.width / 2),
-				y: this.images[imgkey].y,
+				x: this.playerStates[imgkey].x + (images[imgkey].width / 2),
+				y: this.playerStates[imgkey].y,
 				dir: dir,
-				image: this.images["gBomb"].image
+				image: images["gBomb"]
 		};
 
 		if(dir === 40) { //down
-			gbomb.y += this.images[imgkey].image.height;
+			gbomb.y += images[imgkey].height;
 		} else { //up
-			gbomb.y -= this.images["gBomb"].image.height;
+			gbomb.y -= images["gBomb"].height;
 		}
 		this.bombList.push(gbomb);
-		(this.images[imgkey].gBulletsNum)--;
-		if(imgkey === "main") {
-			this.drawGbullets();
-		}
-	},
+		(this.playerStates[imgkey].gBulletsNum)--;
+		this.drawGbullets();
+	};
 
-	isOverlapping:function(img1, img2) {
-		var mx = img1.x;
-		var mxw = mx + img1.image.width;
-		var my = img1.y;
-		var myh = my + img1.image.height;
-
-		var kx = img2.x;
-		var kxw = kx + img2.image.width;
-		var ky = img2.y;
-		var kyh = ky + img2.image.height;
-
-		//console.log("mx: %d, mxw: %d, my: %d, myh: %d", mx, mxw, my, myh);
-		//console.log("kx: %d, kxw: %d, ky: %d, kyh: %d", kx, kxw, ky, kyh);
-
-		if (!(kxw < mx || kx > mxw) &&
-			!(kyh < my || ky > myh))  {
-			return true;
-		}
-		return false;
-	},
-
-	canMove:function(key, x, y) {
-		// if (x < this.images[key].min_x || x > this.images[key].max_x) {
+	this.canMove = function(key, x, y) {
+		// if (x < this.playerStates[key].min_x || x > this.playerStates[key].max_x) {
 		// 	return false;
 		// }
 
 		var mcharacter = {
 			x: x,
 			y: y,
-			image: this.images[key].image
+			image: images[key]
 		};
 
 		// check if any character is in the way
-		for (var k in this.images) {
+		for (var k in this.playerStates) {
 			if (k === key) {
 				continue;
 			}
 
 			var kcharacter = {
-				x: this.images[k].x,
-				y: this.images[k].y,
-				image: this.images[k].image
+				x: this.playerStates[k].x,
+				y: this.playerStates[k].y,
+				image: images[k]
 			};
 
 			//TODO: I don't really know about how to access reference of something in javascript
@@ -511,19 +539,17 @@ var gameui = {
 					kcharacter.x = this.yApples[i];
 					kcharacter.y = this.yApples[i+1];
 					// eat yellow apple
-					if (this.isOverlapping(mcharacter, kcharacter)) {
+					if (isOverlapping(mcharacter, kcharacter)) {
 						var ret = this.isCharacterAt(kcharacter, k);
 						if(ret[0] == true) {
 							settings.makeSound("applebite");
 							this.clearCharacter(kcharacter);
 							//remove apple positions from yApples
 							this.yApples.splice(ret[1], 2);
-							if(this.images[key].yBulletsNum != this.yBulletsMax) {
-								(this.images[key].yBulletsNum)++;
+							if(this.playerStates[key].yBulletsNum != this.yBulletsMax) {
+								(this.playerStates[key].yBulletsNum)++;
 								settings.makeSound("blop");
-								if(key === "main") {
-									this.drawYbullets();
-								}
+								this.drawYbullets();
 							}
 						}
 					}
@@ -534,72 +560,69 @@ var gameui = {
 					kcharacter.x = this.gApples[i];
 					kcharacter.y = this.gApples[i+1];
 					// eat green apple
-					if (this.isOverlapping(mcharacter, kcharacter)) {
+					if (isOverlapping(mcharacter, kcharacter)) {
 						var ret = this.isCharacterAt(kcharacter, k);
 						if(ret[0] == true) {
 							settings.makeSound("applebite");
 							this.clearCharacter(kcharacter);
 							//remove apple positions from gApples
 							this.gApples.splice(ret[1], 2);
-							if(this.images[key].gBulletsNum != this.gBulletsMax) {
-								(this.images[key].gBulletsNum)++;
+							if(this.playerStates[key].gBulletsNum != this.gBulletsMax) {
+								(this.playerStates[key].gBulletsNum)++;
 								settings.makeSound("blop");
-								if(key === "main") {
-									this.drawGbullets();
-								}
+								this.drawGbullets();
 							}
 						}
 					}
 				}
 			}
 			else if (this.isPlayer(k)) {
-				if (this.isOverlapping(mcharacter, kcharacter)) {
+				if (isOverlapping(mcharacter, kcharacter)) {
 					return false;
 				}
 			}
 		}
 		return true;
-	},
+	};
 
-	moveCharacter:function(key, direction) {
-		
+	this.moveCharacter = function(key, direction) {
 		switch(direction) {
 			case 38: //up
-				var new_y = Math.max(this.images[key].y - moveBy, 0);
-				if(this.canMove(key, this.images[key].x, new_y)) {
-					this.clearCharacter(this.images[key]);
-					this.updateCharPosn(key, this.images[key].x, new_y);
+				var new_y = Math.max(this.playerStates[key].y - moveBy, 0);
+				if(this.canMove(key, this.playerStates[key].x, new_y)) {
+					this.clearCharacter(this.playerStates[key]);
+					this.updateCharPosn(key, this.playerStates[key].x, new_y);
 			   		this.drawCharacter(key);
 			   	}
 			break;
 			case 39: //right
-			   	var new_x = Math.min(this.images[key].x + moveBy, this.canvaswidth - this.images[key].image.width);
-			   	if(this.canMove(key, new_x, this.images[key].y)) {
-			   		this.clearCharacter(this.images[key]);
-					this.updateCharPosn(key, new_x, this.images[key].y);
+			   	var new_x = Math.min(this.playerStates[key].x + moveBy, canvaswidth - images[key].width);
+			   	if(this.canMove(key, new_x, this.playerStates[key].y)) {
+			   		this.clearCharacter(this.playerStates[key]);
+					this.updateCharPosn(key, new_x, this.playerStates[key].y);
 			   		this.drawCharacter(key);
 			   	}
 			break;
 			case 40: //down
-				var new_y = Math.min(this.images[key].y + moveBy, this.canvasheight - this.images[key].image.height);
-				if(this.canMove(key, this.images[key].x, new_y)) {
-					this.clearCharacter(this.images[key]);
-					this.updateCharPosn(key, this.images[key].x, new_y);
+				var new_y = Math.min(this.playerStates[key].y + moveBy, canvasheight - images[key].height);
+				if(this.canMove(key, this.playerStates[key].x, new_y)) {
+					this.clearCharacter(this.playerStates[key]);
+					this.updateCharPosn(key, this.playerStates[key].x, new_y);
 			   		this.drawCharacter(key);
 			   	}
 			break;
 			case 37: //left
-				var new_x = Math.max(this.images[key].x - moveBy, 0);
-				if(this.canMove(key, new_x, this.images[key].y)) {
-					this.clearCharacter(this.images[key]);
-					this.updateCharPosn(key, new_x, this.images[key].y);
+				var new_x = Math.max(this.playerStates[key].x - moveBy, 0);
+				if(this.canMove(key, new_x, this.playerStates[key].y)) {
+					this.clearCharacter(this.playerStates[key]);
+					this.updateCharPosn(key, new_x, this.playerStates[key].y);
 			   		this.drawCharacter(key);
 			   	}
 			break;
 			default:
 			break;
 		}
-	}
+	};
 }
 
 var keyHandler = {
@@ -614,13 +637,13 @@ var keyHandler = {
 			    case 40: //down
 			    case 37: //left
 			    	if(this.Wkeydown) {
-			    		gameui.fireGreenBomb("main", e.which);
+			    		mainPlayer.fireGreenBomb(mainCharacter, e.which);
 			    	}
 			    	else if(this.Dkeydown) {
-			    		gameui.fireYellowBomb("main", e.which);
+			    		mainPlayer.fireYellowBomb(mainCharacter, e.which);
 			    	}
 			    	else {
-			    		gameui.moveCharacter("main", e.which);
+			    		mainPlayer.moveCharacter(mainCharacter, e.which);
 			    	}
 			    break;
 			    case 87: //W -> G
@@ -651,43 +674,45 @@ var keyHandler = {
 
 function playGame() {
 
-	gameui.drawHearts();
-	gameui.drawYbullets();
-	gameui.drawGbullets();
+	mainPlayer = new GameUI("elephant");
+
+	mainPlayer.drawHearts();
+	mainPlayer.drawYbullets();
+	mainPlayer.drawGbullets();
 
 	bombInterval = setInterval(drawBombs, bombDrawRate);
 
 	// === init character positions === //
 
 	var offset = 50;
-	gameui.updateCharPosn("main", offset, offset);
-	gameui.updatePosnLimit("main", 0, moveLimitBy);
-	gameui.drawCharacter("main");
+	mainPlayer.updateCharPosn("elephant", offset, offset);
+	mainPlayer.updatePosnLimit("elephant", 0, moveLimitBy);
+	mainPlayer.drawCharacter("elephant");
 
 	// bird is on the opposite side of main
-	var xmax = gameui.canvaswidth - gameui.images["bird"].image.width;
-	var ymax = gameui.canvasheight - gameui.images["bird"].image.height;
-	gameui.updateCharPosn("bird", xmax - offset, offset);
-	gameui.updatePosnLimit("bird", xmax - moveLimitBy, xmax);
-	gameui.drawCharacter("bird");
+	var xmax = canvaswidth - images["bird"].width;
+	var ymax = canvasheight - images["bird"].height;
+	mainPlayer.updateCharPosn("bird", xmax - offset, offset);
+	mainPlayer.updatePosnLimit("bird", xmax - moveLimitBy, xmax);
+	mainPlayer.drawCharacter("bird");
 
-	ymax = gameui.canvasheight - gameui.images["cat"].image.height;
-	gameui.updateCharPosn("cat", offset, ymax - offset);
-	gameui.updatePosnLimit("cat", 0, moveLimitBy);
-	gameui.drawCharacter("cat");
+	ymax = canvasheight - images["cat"].height;
+	mainPlayer.updateCharPosn("cat", offset, ymax - offset);
+	mainPlayer.updatePosnLimit("cat", 0, moveLimitBy);
+	mainPlayer.drawCharacter("cat");
 
 	// bee is one the opposite side of main
-	xmax = gameui.canvaswidth - gameui.images["bee"].image.width;
-	ymax = gameui.canvasheight - gameui.images["bee"].image.height;
-	gameui.updateCharPosn("bee", xmax - offset, ymax - offset);
-	gameui.updatePosnLimit("bee", xmax - moveLimitBy, xmax);
-	gameui.drawCharacter("bee");
+	xmax = canvaswidth - images["bee"].width;
+	ymax = canvasheight - images["bee"].height;
+	mainPlayer.updateCharPosn("bee", xmax - offset, ymax - offset);
+	mainPlayer.updatePosnLimit("bee", xmax - moveLimitBy, xmax);
+	mainPlayer.drawCharacter("bee");
 
 	// === Real game logic starts === //
 	keyHandler.init();
 	for(i=0; i < 10; ++i) {
-		gameui.drawRandomGreenApple();
-		gameui.drawRandomYellowApple();
+		mainPlayer.drawRandomGreenApple();
+		mainPlayer.drawRandomYellowApple();
 	}
 
 	// === Let world state copy data from here === //
@@ -712,7 +737,7 @@ var startscreen= {
 		$('#startgame').click(function(){
 			$('#startgame').hide();
 			$('#loading').show();
-			gameui.init();
+			initUI();
 		});
 
 		$(function () {
