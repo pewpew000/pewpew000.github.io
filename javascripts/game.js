@@ -34,35 +34,6 @@ var imageLoader = {
     			yBulletsNum: 3,
     			gBulletsNum: 2,
     			heartsNum: 5,
-
-				getx : function(){
-					return this.x;
-				},
-
-				gety : function(){
-					return this.y;
-				},
-
-				getminx : function(){
-					return this.min_x;
-				},
-
-				getmaxx : function(){
-					return this.max_x;
-				},
-
-				getyBullet : function(){
-					return this.yBulletsNum;
-				},
-
-				getgBullet : function(){
-					return this.gBulletsNum;
-				},
-
-				getLife : function(){
-					return this.heartsNum;
-				}
-
     		}
     		//gameui.images.push(character);
     		//gameui.images[idx] = character;
@@ -722,6 +693,9 @@ function playGame() {
 	// === Let world state copy data from here === //
 	for (var j = 0; j < 3; j++)
 		world_states[0] = new world_state();
+
+	world_states[0].init();
+	world_states[0].genApples();
 	
 }
 
@@ -866,28 +840,147 @@ event.prototype.getaction = function(){
 
 // world_state class
 function world_state(){
-	this.player_pos = [];
-	this.dead = [];
-	this.Bullets = [];
+	this.player_pos = new Array(4);
+//	this.dead = new Array(4);
+	this.hearts = new Array(4);
+	this.Bullets = new Array(4);
 	this.Apples = [];
 }
 
 world_state.prototype.init = function(){
-	for(var i = 0; i < 4; i++){
+	var i = 0; 
+	for (var k in gameui.images) {
+        if (!(k === "main" || k === "bird" || k === "bee" || k === "cat")) {
+           continue;
+        }
+
 		// load player_pos
-		this.player_pos.push( new position(gameui.images[i].getx(), gameui.images[i].gety()) );
+		this.player_pos[i] = new position(gameui.images[k].x, gameui.images[k].y);
 		
-		// load if dead
-		this.dead.push(0);
+		// load hearts
+		this.hearts[i] = 5;
 		
 		// load bullets info
-		this.Bullet.push(new Bullet(gameui.images[i].getyBullet(), gameui.images[i].getgBullet()));
+		this.Bullets[i] = new Bullet(gameui.images[k].gBulletsNum, gameui.images[k].yBulletsNum);
+
+		i++;
 	}
 
 	// load apple info
-	this.Apples.push();
+	// this.Apples.push();
 	
 	// set time interval, generate apples every 5 seconds
+	// setInterval();
+
+	// set time interval, update bullet position
+	// setInterval(drawBombs, bombDrawRate);
+}
+
+// copy world state info 
+world_state.prototype.copy = function( otherws ){
+	
+}
+
+// start generating Apple info (generate apples every 10 seconds)
+world_state.prototype.startGenApple = function(){
+	setInterval(this.genApples, 10000);
+}
+
+// generate apples
+world_state.prototype.genApples = function(){
+	var coord = this.getRandomAppleLocation();
+}
+
+// get random location for apples
+world_state.prototype.getRandomAppleLocation = function(){
+	var coord = [];
+	var invalidCoord = false;
+	var maxTry = 6;
+	var numTry = 0;
+	while(true) {
+		numTry++;
+		if(numTry === maxTry) {
+			coord = [];
+			break;
+		}
+		coord[0] = Math.max(0, Math.floor(Math.random() * gameui.canvaswidth) - gameui.images["yApple"].image.width);
+		coord[1] = Math.max(0, Math.floor(Math.random() * gameui.canvasheight) - gameui.images["yApple"].image.height);
+		var newapple = {
+			x: coord[0],
+			y: coord[1],
+			image: gameui.images["yApple"].image // do this because apple sizes are the same
+		}
+		// check if it's overlapping with any character
+/*		for (var k in gameui.images) {
+			if (!(k === "main" || k === "bird" || k === "bee" || k === "cat")) {
+				continue;
+			}
+			var kcharacter = {
+				x: gameui.images[k].x,
+				y: gameui.images[k].y,
+				image: gameui.images[k].image
+			};
+			if (gameui.isOverlapping(newapple, kcharacter)) {
+				invalidCoord = true;
+				break;
+			}
+		}
+*/
+		for( var i = 0; i < 4; i++ ){
+			var image = new Image();
+			image.src = gameui.imagesSrcs[i*2];
+			var kcharacter = {
+				x: this.player_pos[i].x,
+				y: this.player_pos[i].y,
+				image: image
+			};
+			if(gameui.isOverlapping(newapple, kcharacter)) {
+				invalidCoord = true;
+				break;
+			}
+		}
+
+		if(invalidCoord) {
+			continue;
+		}
+		// check if it's overlapping with any other apples
+		for (i=0; i < this.yApples.length; i+=1) {
+			var kapple = {
+				x: this.yApples[i].x,
+				y: this.yApples[i].y,
+				image: gameui.images["yApple"].image
+			}
+			if (gameui.isOverlapping(newapple, kapple)) {
+				invalidCoord = true;
+				break;
+			}
+		}
+		if(invalidCoord) {
+			continue;
+		}
+		for (i=0; i < this.gApples.length; i+=2) {
+			var kapple = {
+				x: this.gApples[i],
+				y: this.gApples[i],
+				image: gameui.images["gApple"].image
+			}
+			if (gameui.isOverlapping(newapple, kapple)) {
+				invalidCoord = true;
+				break;
+			}
+		}
+		if(invalidCoord) {
+			continue;
+		}
+		break; //found the new coord
+	}
+	console.log("coord: %d, %d", coord[0], coord[1]);
+	return coord;
+}
+
+// judge if player can move in terms of their position(shouldn't go out of boundary)
+world_state.prototype.canMove = function(player, action){
+	
 
 }
 
@@ -899,6 +992,7 @@ world_state.prototype.apply = function(action){
 	// do the action
 	switch(action.action){
 		case 38:	// UP
+//			if( this.)
 		break;
 		case 40:	// DOWN
 		break;
@@ -919,3 +1013,15 @@ world_state.prototype.apply = function(action){
 	// update corresponding data
 
 }
+
+// return random number
+function genrandom(a, b){
+	return (Math.floor(Math.random() * (b - a + 1)) + a);
+}
+
+// sort function
+function my_sort(a, b){
+	return a.time - b.time;
+}
+
+
