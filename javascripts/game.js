@@ -87,32 +87,32 @@ function drawBombs() {
 		img.x = new_x;
 		img.y = new_y;
 
-		gameui.context.drawImage(gameui.bombList[i].image, img.x, img.y);
-
 		// check if the bomb is overlapping with any character
 		for(k in gameui.images) {
 			if(!gameui.isPlayer(k)) {
 				continue;
 			}
 			if(gameui.isOverlapping(img, gameui.images[k])) {
-				// kill the character
-				console.log("whoa");
-				// Clear and remove bullet
-				gameui.clearCharacter(img);
+				// damage the character
+				gameui.damageCharacter(k);
+
+				// Remove bullet
+				gameui.bombList.splice(i,1);
+				bulletRemoved = true;
 			}
 		}
 
+		// TODO: check if the bomb is overlapping with any apple, if so, redraw apple
+
 		// if reached the end of canvas, clear it and remove from bombList
 		if(gameui.reachedEnd(img)) {
-			// TODO: if there's any item (e.g. apple) you need to redraw
-
 			// clear the bullet and remove from bombList
-			gameui.clearCharacter(img);
 			gameui.bombList.splice(i,1);
 			bulletRemoved = true;
 		}
 
 		if(!bulletRemoved) {
+			gameui.context.drawImage(gameui.bombList[i].image, img.x, img.y);
 			gameui.bombList[i].x = new_x;
 			gameui.bombList[i].y = new_y;
 		}
@@ -214,6 +214,18 @@ var gameui = {
 		this.context.clearRect(img.x, img.y,
 							   img.image.width,
 							   img.image.height);
+	},
+
+	damageCharacter:function(key) {
+		(this.images[key].heartsNum)--;
+		if(this.images[key].heartsNum == 0) {
+			//dead
+			settings.makeSound("dead");
+			this.clearCharacter(this.images[key]);
+		}
+		else {
+			settings.makeSound("hiccup");
+		}
 	},
 
 	isPlayer:function(key) {
@@ -365,48 +377,54 @@ var gameui = {
 	},
 
 	fireYellowBomb:function(imgkey, dir) {
-		if(this.images[imgkey].yBulletsNum == 0) {
+		if((this.images[imgkey].yBulletsNum == 0) || (dir != 39 && dir != 37))
+		{
 			return;
 		}
-		switch(dir) {
-			case 39: //right
-			case 37: //left
-			settings.makeSound("shoot");
-			var ybomb = {
-				x: this.images[imgkey].x + this.images[imgkey].image.width,
+
+		settings.makeSound("shoot");
+		var ybomb = {
+				x: this.images[imgkey].x,
 				y: this.images[imgkey].y + (Math.max(0, this.images[imgkey].image.height - this.images["yBomb"].image.height) / 2),
 				dir: dir,
 				image: this.images["yBomb"].image
-			};
-			this.bombList.push(ybomb);
-			console.log("bomblist length: %d", this.bombList.length);
-			(this.images[imgkey].yBulletsNum)--;
+		};
+
+		if(dir === 39) { //right
+			ybomb.x += this.images[imgkey].image.width;
+		} else { //left
+			ybomb.x -= this.images["yBomb"].image.width;
+		}
+		this.bombList.push(ybomb);
+		(this.images[imgkey].yBulletsNum)--;
+		if(imgkey === "main") {
 			this.drawYbullets();
-		    default:
-		    break;
 		}
 	},
 
 	fireGreenBomb:function(imgkey, dir) {
-		if(this.images[imgkey].gBulletsNum == 0) {
+		if(this.images[imgkey].gBulletsNum == 0 || (dir != 38 && dir != 40))
+		{
 			return;
 		}
-		switch(dir) {
-			case 38: //up
-		    case 40: //down
-		    settings.makeSound("shoot");
-		    var gbomb = {
-				x: this.images[imgkey].x + this.images[imgkey].image.width,
-				y: this.images[imgkey].y + (Math.max(0, this.images[imgkey].image.height - this.images["yBomb"].image.height) / 2),
+
+		settings.makeSound("shoot");
+		var gbomb = {
+				x: this.images[imgkey].x + (this.images[imgkey].image.width / 2),
+				y: this.images[imgkey].y,
 				dir: dir,
 				image: this.images["gBomb"].image
-			};
-			this.bombList.push(gbomb);
-			console.log("bomblist length: %d", this.bombList.length);
-			(this.images[imgkey].gBulletsNum)--;
+		};
+
+		if(dir === 40) { //down
+			gbomb.y += this.images[imgkey].image.height;
+		} else { //up
+			gbomb.y -= this.images["gBomb"].image.height;
+		}
+		this.bombList.push(gbomb);
+		(this.images[imgkey].gBulletsNum)--;
+		if(imgkey === "main") {
 			this.drawGbullets();
-		    default:
-		    break;
 		}
 	},
 
@@ -432,9 +450,9 @@ var gameui = {
 	},
 
 	canMove:function(key, x, y) {
-		if (x < this.images[key].min_x || x > this.images[key].max_x) {
-			return false;
-		}
+		// if (x < this.images[key].min_x || x > this.images[key].max_x) {
+		// 	return false;
+		// }
 
 		var mcharacter = {
 			x: x,
@@ -689,6 +707,10 @@ var settings = {
 		this.soundEffects["blop"].src = "sound/blop.mp3";
 		this.soundEffects["shoot"] = new Audio();
 		this.soundEffects["shoot"].src = "sound/shoot.mp3";
+		this.soundEffects["hiccup"] = new Audio();
+		this.soundEffects["hiccup"].src = "sound/hiccup.mp3";
+		this.soundEffects["dead"] = new Audio();
+		this.soundEffects["dead"].src = "sound/dead.mp3";
 
 		// set the sound button click event
 		$('#sound').click(function(){
