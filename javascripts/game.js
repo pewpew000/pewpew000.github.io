@@ -58,7 +58,7 @@ function drawBombs() {
 			y: new_y,
 			image: mainPlayer.bombList[i].image
 		};
-		clearCharacter(img);
+		mainPlayer.clearCharacter(img);
 
 		// check if the bomb is overlapping with any apple, if so, redraw apple
 		for (j=0; j < mainPlayer.yApples.length; j+=2) {
@@ -161,25 +161,14 @@ function initUI() {
 	}
 }
 
-function copy_assoc(arr)
-{
-    var out = [];
+// === Some general image functions === //
 
-    for(var key in arr)
-    {
-        if(!arr.hasOwnProperty(key))
-        {
-            continue;
-        }
-
-        out[key] = arr[key];
-    }
-
-    return out;
-}
-
-
-
+//
+// isOverlapping:
+//   Given img1, img2 as variables that each contains, x, y, and image
+//   e.g. var img1 = { x:0, y:0, image: images["elephant"] }
+//   it returns either true or false whether two images are overlapping
+//
 function isOverlapping (img1, img2) {
 		var mx = img1.x;
 		var mxw = mx + img1.image.width;
@@ -201,18 +190,20 @@ function isOverlapping (img1, img2) {
 		return false;
 }
 
-function clearCharacter(img) {
-	context.clearRect(img.x, img.y,
-					  img.image.width,
-					  img.image.height);
-}
-
+// reachedEnd:
+//    Given img that each contains x, y, and image
+//    e.g. var img1 = { x:0, y:0, image: images["elephant"] }
+//    returns either true or false whether the image has reached the end of canvas of any side
+//
 function reachedEnd(img) {
 	return ((img.x < 0) ||
 		    ((img.x + img.image.width) > canvaswidth) ||
 		    (img.y < 0) ||
 		    ((img.y + img.image.height) > canvasheight));
 }
+
+// === GameUI === //
+// Player object
 
 function GameUI (myCharacter) {
 
@@ -282,6 +273,15 @@ function GameUI (myCharacter) {
 		context.drawImage(images[key], this.playerStates[key].x, this.playerStates[key].y);
 	};
 
+	this.clearCharacter = function(img) {
+		if(this.myCharacter != mainCharacter) {
+			return;
+		}
+		context.clearRect(img.x, img.y,
+						  img.image.width,
+						  img.image.height);
+	};
+
 	this.updateCharPosn = function(key, x, y) {
 		this.playerStates[key].x = x;
 		this.playerStates[key].y = y;
@@ -298,7 +298,7 @@ function GameUI (myCharacter) {
 		if(this.playerStates[key].heartsNum == 0) {
 			//dead
 			settings.makeSound("dead");
-			clearCharacter(this.playerStates[key]);
+			this.clearCharacter(this.playerStates[key]);
 			if(key === this.myCharacter) {
 				// TODO: indicate game over
 			}
@@ -426,7 +426,7 @@ function GameUI (myCharacter) {
 			setTimeout(function() {
 				var ret = mainPlayer.isCharacterAt(img, "yApple");
 				if(ret[0] == true) {
-					clearCharacter(img);
+					this.clearCharacter(img);
 					//remove apple positions from yApples
 					mainPlayer.yApples.splice(ret[1], 2);
 				}
@@ -450,7 +450,7 @@ function GameUI (myCharacter) {
 			setTimeout(function() {
 				var ret = mainPlayer.isCharacterAt(img, "gApple");
 				if(ret[0] == true) {
-					clearCharacter(img);
+					this.clearCharacter(img);
 					//remove apple positions from gApples
 					mainPlayer.gApples.splice(ret[1], 2);
 				}
@@ -540,7 +540,7 @@ function GameUI (myCharacter) {
 						var ret = this.isCharacterAt(kcharacter, k);
 						if(ret[0] == true) {
 							settings.makeSound("applebite");
-							clearCharacter(kcharacter);
+							this.clearCharacter(kcharacter);
 							//remove apple positions from yApples
 							this.yApples.splice(ret[1], 2);
 							if(this.playerStates[key].yBulletsNum != this.yBulletsMax) {
@@ -561,7 +561,7 @@ function GameUI (myCharacter) {
 						var ret = this.isCharacterAt(kcharacter, k);
 						if(ret[0] == true) {
 							settings.makeSound("applebite");
-							clearCharacter(kcharacter);
+							this.clearCharacter(kcharacter);
 							//remove apple positions from gApples
 							this.gApples.splice(ret[1], 2);
 							if(this.playerStates[key].gBulletsNum != this.gBulletsMax) {
@@ -587,7 +587,7 @@ function GameUI (myCharacter) {
 			case 38: //up
 				var new_y = Math.max(this.playerStates[key].y - moveBy, 0);
 				if(this.canMove(key, this.playerStates[key].x, new_y)) {
-					clearCharacter(this.playerStates[key]);
+					this.clearCharacter(this.playerStates[key]);
 					this.updateCharPosn(key, this.playerStates[key].x, new_y);
 			   		this.drawCharacter(key);
 			   	}
@@ -595,7 +595,7 @@ function GameUI (myCharacter) {
 			case 39: //right
 			   	var new_x = Math.min(this.playerStates[key].x + moveBy, canvaswidth - images[key].width);
 			   	if(this.canMove(key, new_x, this.playerStates[key].y)) {
-			   		clearCharacter(this.playerStates[key]);
+			   		this.clearCharacter(this.playerStates[key]);
 					this.updateCharPosn(key, new_x, this.playerStates[key].y);
 			   		this.drawCharacter(key);
 			   	}
@@ -603,7 +603,7 @@ function GameUI (myCharacter) {
 			case 40: //down
 				var new_y = Math.min(this.playerStates[key].y + moveBy, canvasheight - images[key].height);
 				if(this.canMove(key, this.playerStates[key].x, new_y)) {
-					clearCharacter(this.playerStates[key]);
+					this.clearCharacter(this.playerStates[key]);
 					this.updateCharPosn(key, this.playerStates[key].x, new_y);
 			   		this.drawCharacter(key);
 			   	}
@@ -611,7 +611,7 @@ function GameUI (myCharacter) {
 			case 37: //left
 				var new_x = Math.max(this.playerStates[key].x - moveBy, 0);
 				if(this.canMove(key, new_x, this.playerStates[key].y)) {
-					clearCharacter(this.playerStates[key]);
+					this.clearCharacter(this.playerStates[key]);
 					this.updateCharPosn(key, new_x, this.playerStates[key].y);
 			   		this.drawCharacter(key);
 			   	}
