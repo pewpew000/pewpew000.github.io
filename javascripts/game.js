@@ -9,7 +9,7 @@ var moveBy = 15;
 var appleExpiryDuration = 3000; //for testing, it's very large
 
 var moveBombBy = 10;
-var bombDrawRate = 20;
+var bombDrawRate = 50;
 var bombInterval = null;
 
 var images = {};
@@ -59,47 +59,50 @@ var imageLoader = {
 // this is called inside setInterval
 // bomb element: x, y, dir, image
 //THIS SHOULD CHANGE
-function drawBombs() {
-	var i = mainPlayer.bombList.length;
+function drawBombs(player) {
+	var i = player.bombList.length;
 	console.log("drawBombs: %d", mainPlayer.bombList.length);
 	//go backward as we might remove the bullet
 	while(i--) {
-		var new_x = mainPlayer.bombList[i].x;
-		var new_y = mainPlayer.bombList[i].y;
+		var new_x = player.bombList[i].x;
+		var new_y = player.bombList[i].y;
 		var bulletRemoved = false;
 
 		var img = {
 			x: new_x,
 			y: new_y,
-			image: mainPlayer.bombList[i].image
+			image: player.bombList[i].image
 		};
-		mainPlayer.clearCharacter(img);
 
-		// check if the bomb is overlapping with any apple, if so, redraw apple
-		for (j=0; j < mainPlayer.yApples.length; j+=2) {
-			var kapple = {
-				x: mainPlayer.yApples[j],
-				y: mainPlayer.yApples[j+1],
-				image: images["yApple"]
+		if(player.myCharacter == "elephant"){ // if it is the mainCharacter, need to check these
+			player.clearCharacter(img);
+
+			// check if the bomb is overlapping with any apple, if so, redraw apple
+			for (j=0; j < mainPlayer.yApples.length; j+=2) {
+				var kapple = {
+					x: mainPlayer.yApples[j],
+					y: mainPlayer.yApples[j+1],
+					image: images["yApple"]
+				}
+				if (isOverlapping(img, kapple)) {
+					context.drawImage(images["yApple"], kapple.x, kapple.y);
+					break;
+				}
 			}
-			if (isOverlapping(img, kapple)) {
-				context.drawImage(images["yApple"], kapple.x, kapple.y);
-				break;
+			for (j=0; j < mainPlayer.gApples.length; j+=2) {
+				var kapple = {
+					x: mainPlayer.gApples[j],
+					y: mainPlayer.gApples[j+1],
+					image: images["gApple"]
+				}
+				if (isOverlapping(img, kapple)) {
+					context.drawImage(images["gApple"], kapple.x, kapple.y);
+					break;
+				}
 			}
 		}
-		for (j=0; j < mainPlayer.gApples.length; j+=2) {
-			var kapple = {
-				x: mainPlayer.gApples[j],
-				y: mainPlayer.gApples[j+1],
-				image: images["gApple"]
-			}
-			if (isOverlapping(img, kapple)) {
-				context.drawImage(images["gApple"], kapple.x, kapple.y);
-				break;
-			}
-		}
 
-		switch(mainPlayer.bombList[i].dir) {
+		switch(player.bombList[i].dir) {
 			case 39: //right
 			new_x += moveBombBy;
 			break;
@@ -119,16 +122,16 @@ function drawBombs() {
 		img.y = new_y;
 
 		// check if the bomb is overlapping with any character
-		for(k in mainPlayer.playerStates) {
-			if(!mainPlayer.isPlayer(k)) {
+		for(k in player.playerStates) {
+			if(!player.isPlayer(k)) {
 				continue;
 			}
-			if(isOverlapping(img, mainPlayer.playerStates[k])) {
+			if(isOverlapping(img, player.playerStates[k]) && player.playerStates[k].heartsNum > 0) {
 				// damage the character
-				mainPlayer.damageCharacter(k);
+				player.damageCharacter(k);
 
 				// Remove bullet
-				mainPlayer.bombList.splice(i,1);
+				player.bombList.splice(i,1);
 				bulletRemoved = true;
 			}
 		}
@@ -136,14 +139,15 @@ function drawBombs() {
 		// if reached the end of canvas, clear it and remove from bombList
 		if(reachedEnd(img)) {
 			// clear the bullet and remove from bombList
-			mainPlayer.bombList.splice(i,1);
+			player.bombList.splice(i,1);
 			bulletRemoved = true;
 		}
 
 		if(!bulletRemoved) {
-			context.drawImage(mainPlayer.bombList[i].image, img.x, img.y);
-			mainPlayer.bombList[i].x = new_x;
-			mainPlayer.bombList[i].y = new_y;
+			if(player.myCharacter == "elephant")
+				context.drawImage(mainPlayer.bombList[i].image, img.x, img.y);
+			player.bombList[i].x = new_x;
+			player.bombList[i].y = new_y;
 		}
 	}
 }
@@ -340,12 +344,13 @@ function GameUI (myCharacter) {
 	this.damageCharacter = function(key) {
 		(this.playerStates[key].heartsNum)--;
 		this.drawHearts();
-		if(this.playerStates[key].heartsNum == 0) {
+		if(this.playerStates[key].heartsNum <= 0) {
 			//dead
 			settings.makeSound("dead");
 			this.clearCharacter(this.playerStates[key]);
-			if(key === this.myCharacter) {
+			if(key === "elephant" && this.myCharacter == "elephant") {
 				// TODO: indicate game over
+				alert("Game Over!");
 			}
 		}
 		else {
@@ -901,16 +906,17 @@ function GameUI (myCharacter) {
 			i++;
 		}
 	};
-
+/*
 	this.start_AI = function(){
-		setInterval(function(){ this.AI_move(); }, genRandom(20, 50));
+		var tmp = setInterval(this.AI_move(), genRandom(20, 50));
 	};
-
+*/
 	this.AI_move = function(){
+		if(this.playerStates[this.myCharacter].heartsNum <= 0 ) return;
 		if(this.playerStates[this.myCharacter].gBulletsNum > 0 || this.playerStates[this.myCharacter].yBulletsNum > 0){		// if has bullet, kill others
 			var judge = this.cankill(this.myCharacter, "elephant" );
 			// if can't kill
-			if(judge[0] == 0){ // can't kill, stay away from mainPlayer
+			if(judge == 0){ // can't kill, stay away from mainPlayer
 				this.AI_chase("elephant");
 			} else if(judge[0] == 1){ // can horizon kill
 				this.localbuff(0, this.myCharacter, judge[1]); //fireGreenBomb(this.myCharacter, judge[1]);
@@ -950,8 +956,8 @@ function GameUI (myCharacter) {
 
 	// run away from player
 	this.AI_runAway = function(player){
-		var x_diff = this.playerStates[this.myCharacter].x - this.playerStates[chased].x;
-        var y_diff = this.playerStates[this.myCharacter].y - this.playerStates[chased].y;
+		var x_diff = this.playerStates[this.myCharacter].x - this.playerStates[player].x;
+        var y_diff = this.playerStates[this.myCharacter].y - this.playerStates[player].y;
 
 		if( Math.abs(x_diff) >= Math.abs(y_diff) ){
             if(y_diff > 0){
@@ -1023,18 +1029,18 @@ function GameUI (myCharacter) {
 	// judge if can kill. if can kill then how to kill, if can't return 0
 	this.cankill = function(killer, victim){
 		var res = [];
-		if( Math.abs(playerStates[killer].x - playerStates[victim].x) < images["yBomb"].height ){
+		if( Math.abs(this.playerStates[killer].x - this.playerStates[victim].x) < images["yBomb"].height ){
 			res[0] = 1;
-			if(playerStates[killer].y > playerStates[victim].y){
+			if(this.playerStates[killer].y > this.playerStates[victim].y){
 				res[1] = 38; // fire up
 			} else {
 				res[1] = 40; // fire down
 			}
 			return res;
 		}
-		if( Math.abs(playerStates[killer].y - playerStates[victim].y) < images["yBomb"].width ){
+		if( Math.abs(this.playerStates[killer].y - this.playerStates[victim].y) < images["yBomb"].width ){
 			res[0] = 2;
-			if(playerStates[killer].x > playerStates[victim].x){
+			if(this.playerStates[killer].x > this.playerStates[victim].x){
 				res[1] = 37;
 			} else {
 				res[1] = 39;
@@ -1180,7 +1186,14 @@ function playGame() {
 	mainPlayer.drawYbullets();
 	mainPlayer.drawGbullets();
 
-	bombInterval = setInterval(drawBombs, bombDrawRate);
+	bombInterval = setInterval(function(){drawBombs(mainPlayer);}, bombDrawRate);
+	setInterval(function(){drawBombs(mainack);}, bombDrawRate);
+	setInterval(function(){drawBombs(birdPlayer);}, bombDrawRate);
+	setInterval(function(){drawBombs(birdack);}, bombDrawRate);
+	setInterval(function(){drawBombs(catPlayer);}, bombDrawRate);
+	setInterval(function(){drawBombs(catack);}, bombDrawRate);
+	setInterval(function(){drawBombs(beePlayer);}, bombDrawRate);
+	setInterval(function(){drawBombs(beeack);}, bombDrawRate);
 
 	// === init character positions === //
     initPositions(mainPlayer);
@@ -1213,6 +1226,14 @@ function playGame() {
 		}
 	}
 */
+
+	// start AIs
+/*	birdPlayer.start_AI();
+    catPlayer.start_AI();
+    beePlayer.start_AI();
+*/	setInterval(function(){ birdPlayer.AI_move(); }, genRandom(20, 50));
+	setInterval(function(){ catPlayer.AI_move(); }, genRandom(20, 50));
+	setInterval(function(){ beePlayer.AI_move(); }, genRandom(20, 50));
 
 }
 
