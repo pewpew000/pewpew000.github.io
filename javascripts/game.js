@@ -669,7 +669,7 @@ function GameUI (myCharacter) {
 			}
 			// if overlapping with another player, return false (it can't move)
 			else if (this.isPlayer(k)) {
-				if (isOverlapping(mcharacter, kcharacter)) {
+				if (isOverlapping(mcharacter, kcharacter) && this.playerStates[k].heartsNum > 0) {
 					return false;
 				}
 			}
@@ -940,16 +940,38 @@ function GameUI (myCharacter) {
 		var x_diff = this.playerStates[this.myCharacter].x - this.playerStates[chased].x;
 		var y_diff = this.playerStates[this.myCharacter].y - this.playerStates[chased].y;
 		if( Math.abs(x_diff) >= Math.abs(y_diff) ){
-			if(y_diff > 0){
-				this.localbuff(2, this.myCharacter, 38); // up
-			} else {
-				this.localbuff(2, this.myCharacter, 40); // down
+			switch(genRandom(0,2)){
+				case 0:
+					if(x_diff > 0){
+             		   this.localbuff(2, this.myCharacter, 37); // left
+		            } else {
+        		        this.localbuff(2, this.myCharacter, 39); // right
+           			}
+				break;
+				default:
+					if(y_diff > 0){
+						this.localbuff(2, this.myCharacter, 38); // up
+					} else {
+						this.localbuff(2, this.myCharacter, 40); // down
+					}
+				break;
 			}
 		} else {
-			if(x_diff > 0){
-				this.localbuff(2, this.myCharacter, 37); // left
-			} else {
-				this.localbuff(2, this.myCharacter, 39); // right
+			switch(genRandom(0,2)){
+				case 0:
+					if(y_diff > 0){
+                        this.localbuff(2, this.myCharacter, 38); // up
+                    } else {
+                        this.localbuff(2, this.myCharacter, 40); // down
+                    }
+				break;
+				default:
+					if(x_diff > 0){
+						this.localbuff(2, this.myCharacter, 37); // left
+					} else {
+						this.localbuff(2, this.myCharacter, 39); // right
+					}
+				break;
 			}
 		}
 	};
