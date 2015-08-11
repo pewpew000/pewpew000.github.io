@@ -5,16 +5,28 @@
 // Global variables for settings
 var moveLimitBy = 300;
 var moveBy = 15;
-var appleExpiryDuration = 40000; //for testing, it's very large
+
+var appleExpiryDuration = 3000; //for testing, it's very large
+
 var moveBombBy = 10;
 var bombDrawRate = 20;
 var bombInterval = null;
+
 var images = {};
-var mainPlayer; //GameUI object
+
+var mainPlayer; //GameUI objects
+var birdPlayer;
+var catPlayer;
+var beePlayer;
+var server; 
+ 
 var mainCharacter = "elephant";
 
+var latencyList = [];
+
 // Global variables for background calculation
-var world_states = new Array(3);
+speculation_k1 = 4; // for key actions
+speculation_k2 = 4; // for move actions
 
 var imageLoader = {
 	loaded:true,
@@ -226,6 +238,12 @@ function GameUI (myCharacter) {
 	this.playerStates["bird"] = { x: 0, y: 0, yBulletsNum: 3, gBulletsNum: 2, heartsNum: 5, image: images["bird"] };
 	this.playerStates["yApple"] = { x: 0, y: 0, image: images["yApple"] };
 	this.playerStates["gApple"] = { x: 0, y: 0, image: images["gApple"] };
+
+// buffers used for background
+	this.localbuffer = [];
+	this.pending_k1 = 0; // pending for firing
+	this.pending_k2 = 0; // pending for moving
+//	this.bufferNum = 0;
 
 	// === drawHearts === //
 	//   Draw the # of hears that the main character has
@@ -469,14 +487,16 @@ function GameUI (myCharacter) {
 				image: images["yApple"]
 			}
 			//THIS SHOULD CHANGE!
-			setTimeout(function() {
-				var ret = mainPlayer.isCharacterAt(img, "yApple");
+/*			setTimeout(function() {
+				var ret = this.isCharacterAt(img, "yApple");
 				if(ret[0] == true) {
 					this.clearCharacter(img);
 					//remove apple positions from yApples
-					mainPlayer.yApples.splice(ret[1], 2);
+					this.yApples.splice(ret[1], 2);
 				}
 			}, appleExpiryDuration);
+*/
+			setTimeout(cleanyApple(this, img), appleExpiryDuration);
 		}
 	};
 
@@ -497,14 +517,16 @@ function GameUI (myCharacter) {
 				image: images["gApple"]
 			}
 			//THIS SHOULD CHANGE!
-			setTimeout(function() {
-				var ret = mainPlayer.isCharacterAt(img, "gApple");
+/*			setTimeout(function() {
+				var ret = this.isCharacterAt(img, "gApple");
 				if(ret[0] == true) {
 					this.clearCharacter(img);
 					//remove apple positions from gApples
-					mainPlayer.gApples.splice(ret[1], 2);
+					this.gApples.splice(ret[1], 2);
 				}
 			}, appleExpiryDuration);
+*/
+			setTimeout(cleangApple(this, img), appleExpiryDuration);
 		}
 	};
 
@@ -688,7 +710,365 @@ function GameUI (myCharacter) {
 			break;
 		}
 	};
+
+	// synchronize world states to be the same as the other
+	this.synchStates = function(other){
+		// clean speculating datas
+		this.pending_k1 = 0;
+		this.pending_k2 = 0;
+//		var coord = {x: 0, y: 0};
+
+		// yApples
+//		this.yApples.splice(0, this.yApples.length);
+/*		for(var i = 0; i < other.yApples.length; i += 2){
+			coord.x = other.yApples[i];
+			coord.y = other.yApples[i+1];
+			var ret = this.isCharacterAt(coord, "yApple");
+			if( ret[0] != true )
+			this.yApples.push(other.yApples[i]);
+		}
+*/		
+		// gApples
+/*		this.gApples.splice(0, this.gApples.length)
+		for(var i = 0; i < other.gApples.length; i++)
+			this.gApples.push(other.gApples[i]);
+*/
+		// bombList : kind of messy to think about, need to think about it latter.
+/*		this.bombList.splice(0, this.bombList.length);
+		for(var i = 0; i < other.bombList.length; i++)
+			this.bombList.push(other.bombList[i]);
+*/
+		// playerStates
+		for(k in this.playerStates){ // x: 0, y: 0, yBulletsNum: 3, gBulletsNum: 2, heartsNum: 5
+			var changed = [];
+			var img = {
+				x: this.playerStates[k].x,
+				y: this.playerStates[k].y,
+				image: images[k]
+			};
+		
+			changed[0] = false;
+			changed[1] = false;
+ 
+			if(img.x != other.playerStates[k].x || img.y != other.playerStates[k].y){
+				this.clearCharacter(img);
+				changed[0] = true;
+			}
+
+			if(this.playerStates[k].yBulletsNum != other.playerStates[k].yBulletsNum || this.playerStates[k].gBulletsNum != other.playerStates[k].gBulletsNum )
+				changed[1] = true;
+
+			this.playerStates[k].x = other.playerStates[k].x;
+			this.playerStates[k].y = other.playerStates[k].y;
+			this.playerStates[k].yBulletsNum = other.playerStates[k].yBulletsNum;
+			this.playerStates[k].gBulletsNum = other.playerStates[k].gBulletsNum;
+			this.playerStates[k].heartsNum = other.playerStates[k].heartsNum;
+			if(changed[0])
+				this.drawCharacter(k);
+			if(changed[1]){
+				//this.drawBullets();
+				this.drawYbullets();
+				this.drawGbullets();
+			}
+		}
+	};
+
+	this.findclearbuff = function(item){ // delete events acknowledged by the server
+		for(var i = 0; i < this.localbuffer.length; i++){
+			if(this.localbuffer[i].player == item.player && this.localbuffer[i].fNum == item.fNum && this.localbuffer[i].dir == item.dir){
+				this.localbuffer.splice(i, 1);
+			}
+		}
+	};
+
+	this.localbuff = function(funcNum, Character, direction){
+
+		if(this.myCharacter == "server"){ // for the server buffer
+			// update the world state
+			switch(funcNum){
+				case 0:
+					this.fireGreenBomb(Character, direction);
+				break;
+				case 1:
+					this.fireYellowBomb(Character, direction);
+				break;
+				case 2:
+					this.moveCharacter(Character, direction);
+				break;
+			}
+
+			// set timeout to send info to all ack world states
+			setTimeout( function(){ mainack.localbuff(funcNum, Character, direction); }, latencyList["server"].elephant );
+			setTimeout( function(){ birdack.localbuff(funcNum, Character, direction); }, latencyList["server"].bird );
+			setTimeout( function(){  catack.localbuff(funcNum, Character, direction); }, latencyList["server"].cat );
+			setTimeout( function(){  beeack.localbuff(funcNum, Character, direction); }, latencyList["server"].bee );
+
+		} else if(this.myCharacter == "elephantack" || this.myCharacter == "birdack" || this.myCharacter == "catack" || this.myCharacter == "beeack" ){
+  			/* for the ack world states */
+			// insert to local buffer immediately
+			this.localbuffer.push( {player: Character, fNum: funcNum, dir: direction} );
+
+			//update the world state
+			switch(funcNum){
+                case 0:
+                    this.fireGreenBomb(Character, direction);
+					this.pending_k1++;
+                break;
+                case 1:
+                    this.fireYellowBomb(Character, direction);
+					this.pending_k1++;
+                break;
+                case 2:
+                    this.moveCharacter(Character, direction);
+					this.pending_k2++;
+                break;
+            }
+
+			if(this.pending_k1 >= speculation_k1 || this.pending_k2 >= speculation_k2){
+			
+				// synchronize with prediction copy
+				if( this.myCharacter == "elephantack" ){
+					synchronize(mainack, mainPlayer);
+				} else if( this.myCharacter == "birdack" ){
+					synchronize(birdack, birdPlayer);
+				} else if( this.myCharacter == "catack" ){
+					synchronize(catack, catPlayer);
+				} else {
+					synchronize(beeack, beePlayer);
+				}
+				this.pending_k1 = 0;
+				this.pending_k2 = 0;
+			}
+		} else { /* for the prediction world states */
+			// insert to local buffer immediately
+			this.localbuffer.push( {player: Character, fNum: funcNum, dir: direction} );
+
+			// update the number of actions in the buffer now
+			if(funcNum != 2){ // firing situation
+				if(this.pending_k1 < speculation_k1){ 
+//					this.bufferNum += 1;		// note down how many actions have been buffered
+					this.pending_k1 += 1;
+					if(funcNum == 0){
+						this.fireGreenBomb(Character, direction);
+					} else {
+						this.fireYellowBomb(Character, direction);
+					}
+				} else {	// when firing speculation has come to limit
+					this.pending_k2 = speculation_k2;
+				}
+			} else {	// moving situation
+				if(this.pending_k2 < speculation_k2){
+//					this.bufferNum += 1;		// note down how many actions have been buffered
+					this.pending_k2 += 1;
+					this.moveCharacter(Character, direction);
+				} else {	// when moving speculation has come to limit
+					this.pending_k1 = speculation_k1;
+				}
+			}
+
+			// if is self action, set timeout and insert it to otherplayer's buffer
+			if(Character === this.myCharacter){
+				if(Character != "elephant")
+					setTimeout( function(){ mainPlayer.localbuff(funcNum, Character, direction); }, latencyList[Character].elephant);	// to all other players
+				if(Character != "bird")
+					setTimeout( function(){ birdPlayer.localbuff(funcNum, Character, direction); }, latencyList[Character].bird);	// to all other players
+				if(Character != "cat")
+					setTimeout( function(){ catPlayer.localbuff(funcNum, Character, direction); }, latencyList[Character].cat);	// to all other players
+				if(Character != "bee")
+					setTimeout( function(){ beePlayer.localbuff(funcNum, Character, direction); }, latencyList[Character].bee);	// to all other players
+				setTimeout( function(){ server.localbuff(funcNum, Character, direction); }, latencyList[Character].server);	// to the server
+			}	
+		} 
+
+	};
+
+	this.run = function(){ // running until pending_k big enough
+		var i = 0;
+		while( i < this.localbuffer.length && this.pending_k1 < speculation_k1 && this.pending_k2 < speculation_k2 ){
+			switch(this.localbuffer[i].fNum){
+			case 0:
+				this.fireGreenBomb(this.localbuffer[i].player, this.localbuffer[i].direction);
+				this.pending_k1 += 1;
+			break;
+			case 1:
+				this.fireYellowBomb(this.localbuffer[i].player, this.localbuffer[i].direction);
+				this.pending_k1 += 1;
+			break;
+			case 2:
+				this.moveCharacter(this.localbuffer[i].player, this.localbuffer[i].direction);
+			break;
+			}
+			i++;
+		}
+	};
+
+	this.start_AI = function(){
+		setInterval(function(){ this.AI_move(); }, genRandom(20, 50));
+	};
+
+	this.AI_move = function(){
+		if(this.playerStates[this.myCharacter].gBulletsNum > 0 || this.playerStates[this.myCharacter].yBulletsNum > 0){		// if has bullet, kill others
+			var judge = this.cankill(this.myCharacter, "elephant" );
+			// if can't kill
+			if(judge[0] == 0){ // can't kill, stay away from mainPlayer
+				this.AI_chase("elephant");
+			} else if(judge[0] == 1){ // can horizon kill
+				this.localbuff(0, this.myCharacter, judge[1]); //fireGreenBomb(this.myCharacter, judge[1]);
+			} else { // can vertical kill
+				this.localbuff(1, this.myCharacter, judge[1]); //fireYellowBomb(this.myCharacter, judge[1]);
+			}
+
+		} else {			// if has no bullet, if has apples, chase; if no apples, avoid
+			// if there are apples now, chase the apple
+			if(this.yApples.length > 0 || this.gApples.length > 0){
+				this.AI_chaseApple();
+			} else {
+				// if there are no apple now
+				this.AI_runAway("elephant");
+			}
+		}
+	};
+
+	// chase player: chased
+	this.AI_chase = function(chased){
+		var x_diff = this.playerStates[this.myCharacter].x - this.playerStates[chased].x;
+		var y_diff = this.playerStates[this.myCharacter].y - this.playerStates[chased].y;
+		if( Math.abs(x_diff) >= Math.abs(y_diff) ){
+			if(y_diff > 0){
+				this.localbuff(2, this.myCharacter, 38); // up
+			} else {
+				this.localbuff(2, this.myCharacter, 40); // down
+			}
+		} else {
+			if(x_diff > 0){
+				this.localbuff(2, this.myCharacter, 37); // left
+			} else {
+				this.localbuff(2, this.myCharacter, 39); // right
+			}
+		}
+	};
+
+	// run away from player
+	this.AI_runAway = function(player){
+		var x_diff = this.playerStates[this.myCharacter].x - this.playerStates[chased].x;
+        var y_diff = this.playerStates[this.myCharacter].y - this.playerStates[chased].y;
+
+		if( Math.abs(x_diff) >= Math.abs(y_diff) ){
+            if(y_diff > 0){
+                this.localbuff(2, this.myCharacter, 40); // up
+            } else {
+                this.localbuff(2, this.myCharacter, 38); // down
+            }
+        } else {
+            if(x_diff > 0){
+                this.localbuff(2, this.myCharacter, 39); // left
+            } else {
+                this.localbuff(2, this.myCharacter, 37); // right
+            }
+        }
+
+	};
+
+	// chase Apple
+	this.AI_chaseApple = function(){
+		var choose = {
+			dist: 99999,
+			xdist: 0,
+			ydist: 0,
+//			kind: 0,
+//			index: 0
+		};
+		var self = {
+			x: this.playerStates[this.myCharacter].x,
+			y: this.playerStates[this.myCharacter].y
+		};
+
+		// choose the apple closet to self
+		for(var i = 0; i < this.yApples.length; i+= 2){
+			if( choose.dist > Math.abs( Math.pow(self.x - this.yApples[i], 2) - Math.pow(self.y - this.yApples[i+1], 2) ) ){
+				choose.dist = Math.abs( Math.pow(self.x - this.yApples[i], 2) - Math.pow(self.y - this.yApples[i+1], 2) );
+				choose.xdist = self.x - this.yApples[i];
+				choose.ydist = self.y - this.yApples[i+1];
+//				choose.kind = 1;
+//				choose.index = i;
+			}
+		}
+
+		for(var i = 0; i < this.gApples.length; i += 2){
+			if( choose.dist > Math.abs( Math.pow(self.x - this.yApples[i], 2) - Math.pow(self.y - this.yApples[i+1], 2) ) ){
+				choose.dist = Math.abs( Math.pow(self.x - this.yApples[i], 2) - Math.pow(self.y - this.yApples[i+1], 2) );
+				choose.xdist = self.x - this.yApples[i];
+				choose.ydist = self.y - this.yApples[i+1];
+//				choose.kind = 2;
+//				choose.index = i;
+			}
+		}
+
+		// go towards the apple
+		if(Math.abs(choose.xdist) > Math.abs(choose.ydist)){
+			if(choose.ydist >= 0){
+				this.localbuff(2, this.myCharacter, 38); // up
+			} else {
+				this.localbuff(2, this.myCharacter, 40); // down
+			}
+		} else {
+			if(choose.xdist >= 0){
+				this.localbuff(2, this.myCharacter, 37); // left
+			} else {
+				this.localbuff(2, this.myCharacter, 39); // right
+			}
+		}
+	};
+
+	// judge if can kill. if can kill then how to kill, if can't return 0
+	this.cankill = function(killer, victim){
+		var res = [];
+		if( Math.abs(playerStates[killer].x - playerStates[victim].x) < images["yBomb"].height ){
+			res[0] = 1;
+			if(playerStates[killer].y > playerStates[victim].y){
+				res[1] = 38; // fire up
+			} else {
+				res[1] = 40; // fire down
+			}
+			return res;
+		}
+		if( Math.abs(playerStates[killer].y - playerStates[victim].y) < images["yBomb"].width ){
+			res[0] = 2;
+			if(playerStates[killer].x > playerStates[victim].x){
+				res[1] = 37;
+			} else {
+				res[1] = 39;
+			}
+			return res;
+		}
+
+		return (res[0] = 0);
+	};
 }
+
+// === clean apple === //
+function cleangApple(self, img){
+	return function(){
+		var ret = self.isCharacterAt(img, "gApple");
+    	if(ret[0] == true) {
+    		self.clearCharacter(img);
+        	//remove apple positions from gApples
+       	 self.gApples.splice(ret[1], 2);
+    	}
+	}
+}
+
+function cleanyApple(self, img){
+    return function(){
+        var ret = self.isCharacterAt(img, "yApple");
+        if(ret[0] == true) {
+            self.clearCharacter(img);
+            //remove apple positions from gApples
+         self.yApples.splice(ret[1], 2);
+        }
+    }
+}
+
 
 // === keyHandler ===//
 //  Key press only affects the main character
@@ -705,13 +1085,19 @@ var keyHandler = {
 			    case 40: //down
 			    case 37: //left
 			    	if(this.Wkeydown) {
-			    		mainPlayer.fireGreenBomb(mainCharacter, e.which);
+//			    		mainPlayer.fireGreenBomb(mainCharacter, e.which);
+						// push action into local buffer
+						mainPlayer.localbuff(0, mainCharacter, e.which)
 			    	}
 			    	else if(this.Dkeydown) {
-			    		mainPlayer.fireYellowBomb(mainCharacter, e.which);
+//			    		mainPlayer.fireYellowBomb(mainCharacter, e.which);
+						// push action to local buffer
+						mainPlayer.localbuff(1, mainCharacter, e.which)
 			    	}
 			    	else {
-			    		mainPlayer.moveCharacter(mainCharacter, e.which);
+//			    		mainPlayer.moveCharacter(mainCharacter, e.which);
+						// push action to local buffer
+						mainPlayer.localbuff(2, mainCharacter, e.which)
 			    	}
 			    break;
 			    case 87: //W -> G
@@ -740,9 +1126,55 @@ var keyHandler = {
 	},
 }
 
+function initPositions(player) {
+	var offset = 50;
+	player.updateCharPosn("elephant", offset, offset);
+	player.updatePosnLimit("elephant", 0, moveLimitBy);
+	player.drawCharacter("elephant");
+
+	// bird is on the opposite side of main
+	var xmax = canvaswidth - images["bird"].width;
+	var ymax = canvasheight - images["bird"].height;
+	player.updateCharPosn("bird", xmax - offset, offset);
+	player.updatePosnLimit("bird", xmax - moveLimitBy, xmax);
+	player.drawCharacter("bird");
+
+	ymax = canvasheight - images["cat"].height;
+	player.updateCharPosn("cat", offset, ymax - offset);
+	player.updatePosnLimit("cat", 0, moveLimitBy);
+	player.drawCharacter("cat");
+
+	// bee is one the opposite side of main
+	xmax = canvaswidth - images["bee"].width;
+	ymax = canvasheight - images["bee"].height;
+	player.updateCharPosn("bee", xmax - offset, ymax - offset);
+	player.updatePosnLimit("bee", xmax - moveLimitBy, xmax);
+	player.drawCharacter("bee");
+}
+
 function playGame() {
 
+	/* setup all players skeleton */
 	mainPlayer = new GameUI("elephant");
+    birdPlayer = new GameUI("bird");
+	catPlayer  = new GameUI("cat");
+	beePlayer  = new GameUI("bee");
+	server     = new GameUI("server");
+	
+	/* setup all players' ack skeleton */
+	mainack = new GameUI("elephantack");
+    birdack = new GameUI("birdack");
+	catack  = new GameUI("catack");
+	beeack  = new GameUI("beeack");
+
+//    	console.log(playersList["bird"].latencyList["elephant"]);
+
+	/* latency infomation initialize */
+    latencyList["elephant"] = { "bird": 60, "cat": 50, "bee": 50, "server": 100  };
+    latencyList["bird"]     = { "elephant": 60, "cat": 40, "bee": 40, "server": 120  };
+    latencyList["cat"]      = { "elephant": 50, "bird": 40, "bee": 60, "server": 90  };
+    latencyList["bee"]      = { "elephant": 50, "cat": 60, "bird": 40, "server": 110  };
+    latencyList["server"]   = { "elephant": 100, "cat": 90, "bee": 110, "bird": 120  };
 
 	mainPlayer.drawHearts();
 	mainPlayer.drawYbullets();
@@ -751,34 +1183,26 @@ function playGame() {
 	bombInterval = setInterval(drawBombs, bombDrawRate);
 
 	// === init character positions === //
+    initPositions(mainPlayer);
+    initPositions(birdPlayer);
+    initPositions(catPlayer);
+    initPositions(beePlayer);
+    initPositions(server);
 
-	var offset = 50;
-	mainPlayer.updateCharPosn("elephant", offset, offset);
-	mainPlayer.updatePosnLimit("elephant", 0, moveLimitBy);
-	mainPlayer.drawCharacter("elephant");
-
-	// bird is on the opposite side of main
-	var xmax = canvaswidth - images["bird"].width;
-	var ymax = canvasheight - images["bird"].height;
-	mainPlayer.updateCharPosn("bird", xmax - offset, offset);
-	mainPlayer.updatePosnLimit("bird", xmax - moveLimitBy, xmax);
-	mainPlayer.drawCharacter("bird");
-
-	ymax = canvasheight - images["cat"].height;
-	mainPlayer.updateCharPosn("cat", offset, ymax - offset);
-	mainPlayer.updatePosnLimit("cat", 0, moveLimitBy);
-	mainPlayer.drawCharacter("cat");
-
-	// bee is one the opposite side of main
-	xmax = canvaswidth - images["bee"].width;
-	ymax = canvasheight - images["bee"].height;
-	mainPlayer.updateCharPosn("bee", xmax - offset, ymax - offset);
-	mainPlayer.updatePosnLimit("bee", xmax - moveLimitBy, xmax);
-	mainPlayer.drawCharacter("bee");
+	// init ack positions
+    initPositions(mainack);
+    initPositions(birdack);
+    initPositions(catack);
+    initPositions(beeack);
 
 	// === Real game logic starts === //
 	keyHandler.init();
-	for(i=0; i < 10; ++i) {
+
+
+	// generate apples at the server every interval
+	genApple();
+	setInterval(genApple, 10000);
+/*	for(i=0; i < 10; ++i) {
 		var coord = mainPlayer.getRandomAppleLocation();
 		if(coord.length > 0) {
 			mainPlayer.drawGreenApple(mainPlayer.getRandomAppleLocation());
@@ -788,14 +1212,60 @@ function playGame() {
 			mainPlayer.drawYellowApple(mainPlayer.getRandomAppleLocation());
 		}
 	}
+*/
 
-	// === Let world state copy data from here === //
-	for (var j = 0; j < 3; j++)
-		world_states[0] = new world_state();
+}
 
-	world_states[0].init();
-	world_states[0].genApples();
+function sendgApples(coord){
+	setTimeout( function(){ mainPlayer.drawGreenApple(coord); }, latencyList["server"].elephant);//latencyList["server"].elephant);
+    setTimeout( function(){ mainack.drawGreenApple(coord); }, latencyList["server"].elephant);
+    setTimeout( function(){ birdPlayer.drawGreenApple(coord); }, latencyList["server"].bird);
+    setTimeout( function(){ birdack.drawGreenApple(coord); }, latencyList["server"].bird);
+    setTimeout( function(){ catPlayer.drawGreenApple(coord); }, latencyList["server"].cat);
+    setTimeout( function(){ catack.drawGreenApple(coord); }, latencyList["server"].cat);
+    setTimeout( function(){ beePlayer.drawGreenApple(coord); }, latencyList["server"].bee);
+    setTimeout( function(){ beeack.drawGreenApple(coord); }, latencyList["server"].bee);
+}
+
+function sendyApples(coord){
+	setTimeout( function(){ mainPlayer.drawYellowApple(coord); }, latencyList["server"].elephant);
+    setTimeout( function(){ mainack.drawYellowApple(coord); }, latencyList["server"].elephant);
+    setTimeout( function(){ birdPlayer.drawYellowApple(coord); }, latencyList["server"].bird);
+    setTimeout( function(){ birdack.drawYellowApple(coord); }, latencyList["server"].bird);
+    setTimeout( function(){ catPlayer.drawYellowApple(coord); }, latencyList["server"].cat);
+    setTimeout( function(){ catack.drawYellowApple(coord); }, latencyList["server"].cat);
+    setTimeout( function(){ beePlayer.drawYellowApple(coord); }, latencyList["server"].bee);
+    setTimeout( function(){ beeack.drawYellowApple(coord); }, latencyList["server"].bee);
+}
+
+// let the server generate apples
+function genApple(){
+	// generate apples and put into server
+	for(i=0; i < 10; ++i) {
+        var coord = server.getRandomAppleLocation();
+        if(coord.length > 0) {
+            server.drawGreenApple(coord);
+        }
+        coord = server.getRandomAppleLocation();
+        if(coord.length > 0) {
+            server.drawYellowApple(coord);
+        }
+    }
 	
+	// insert these apples into other player's ack world
+	for(i= 0; i < server.gApples.length; i += 2){
+		var coord = [];
+		coord[0] = server.gApples[i];
+		coord[1] = server.gApples[i+1];
+		sendgApples(coord);
+	}
+
+	for(i= 0; i < server.yApples.length; i++){
+		var coord = [];
+		coord[0] = server.yApples[i];
+		coord[1] = server.gApples[i+1];
+		sendyApples(coord)
+	}
 }
 
 var startscreen = {
@@ -877,250 +1347,26 @@ function initgame(){
 	settings.init();
 }
 
-/* === data structures for background calculation === */
-// Bullet class
-function Bullet(x, y){
-	this.gBullet = x;
-	this.yBullet = y;
-}
+// synchronize world states: ack and prediction
+function synchronize(ackworld, predworld){
+	// delete acked events in predworld local buffer
+	for(var i = 0; i < ackworld.localbuffer.length; i++)
+		predworld.findclearbuff(ackworld.localbuffer[i]);
 
-// Position class
-function position(x, y){
-	this.x = x;
-	this.y = y;
-}
+	// clean ackworld's local buffer
+	ackworld.localbuffer.splice(0, ackworld.localbuffer.length);
 
-position.prototype.set = function(pos_x, pos_y){
-	this.x = pos_x;
-	this.y = pos_y;
-}
+	// synchronize the position & apple || now not synchronizing bombList
+	predworld.synchStates(ackworld);
 
-position.prototype.setx = function(pos_x){
-	this.x = pos_x;
-}
-
-position.prototype.sety = function(pox_y){
-	this.y = pos_y;
-}
-
-position.prototype.getx = function(){
-	return this.x;
-}
-
-position.prototype.gety = function(){
-	return this.y;
-}
-
-// apple class
-function apple(x, y){
-	this.x = x;
-	this.y = y;
-	this.edible = true;
-}
-
-// action class
-function event(time, player, action){
-	this.time = time;
-	this.player = player;
-	this.action = action;
-}
-
-event.prototype.gettime = function(){
-	return this.time;
-}
-
-event.prototype.getplayer = function(){
-	return this.player;
-}
-
-event.prototype.getaction = function(){
-	return this.action;
-}
-
-// world_state class
-function world_state(){
-	this.player_pos = new Array(4);
-//	this.dead = new Array(4);
-	this.hearts = new Array(4);
-	this.Bullets = new Array(4);
-	this.Apples = [];
-}
-
-world_state.prototype.init = function(){
-	var i = 0; 
-	for (var k in gameui.images) {
-        if (!(k === "main" || k === "bird" || k === "bee" || k === "cat")) {
-           continue;
-        }
-
-		// load player_pos
-		this.player_pos[i] = new position(gameui.images[k].x, gameui.images[k].y);
-		
-		// load hearts
-		this.hearts[i] = 5;
-		
-		// load bullets info
-		this.Bullets[i] = new Bullet(gameui.images[k].gBulletsNum, gameui.images[k].yBulletsNum);
-
-		i++;
+	// if predworld's local buffer is not empty, need to go on rendering.
+	if( predworld.localbuffer.length > 0 ){
+		predworld.run();	// go on rendering stuff and stuck at certain point.
 	}
-
-	// load apple info
-	// this.Apples.push();
-	
-	// set time interval, generate apples every 5 seconds
-	// setInterval();
-
-	// set time interval, update bullet position
-	// setInterval(drawBombs, bombDrawRate);
 }
 
-// copy world state info 
-world_state.prototype.copy = function( otherws ){
-	
+// return random number in range: [a, b]
+function genRandom(a, b){
+    return (Math.floor(Math.random() * (b - a + 1)) + a);
 }
-
-// start generating Apple info (generate apples every 10 seconds)
-world_state.prototype.startGenApple = function(){
-	setInterval(this.genApples, 10000);
-}
-
-// generate apples
-world_state.prototype.genApples = function(){
-	var coord = this.getRandomAppleLocation();
-}
-
-// get random location for apples
-world_state.prototype.getRandomAppleLocation = function(){
-	var coord = [];
-	var invalidCoord = false;
-	var maxTry = 6;
-	var numTry = 0;
-	while(true) {
-		numTry++;
-		if(numTry === maxTry) {
-			coord = [];
-			break;
-		}
-		coord[0] = Math.max(0, Math.floor(Math.random() * gameui.canvaswidth) - gameui.images["yApple"].image.width);
-		coord[1] = Math.max(0, Math.floor(Math.random() * gameui.canvasheight) - gameui.images["yApple"].image.height);
-		var newapple = {
-			x: coord[0],
-			y: coord[1],
-			image: gameui.images["yApple"].image // do this because apple sizes are the same
-		}
-		// check if it's overlapping with any character
-/*		for (var k in gameui.images) {
-			if (!(k === "main" || k === "bird" || k === "bee" || k === "cat")) {
-				continue;
-			}
-			var kcharacter = {
-				x: gameui.images[k].x,
-				y: gameui.images[k].y,
-				image: gameui.images[k].image
-			};
-			if (gameui.isOverlapping(newapple, kcharacter)) {
-				invalidCoord = true;
-				break;
-			}
-		}
-*/
-		for( var i = 0; i < 4; i++ ){
-			var image = new Image();
-			image.src = gameui.imagesSrcs[i*2];
-			var kcharacter = {
-				x: this.player_pos[i].x,
-				y: this.player_pos[i].y,
-				image: image
-			};
-			if(gameui.isOverlapping(newapple, kcharacter)) {
-				invalidCoord = true;
-				break;
-			}
-		}
-
-		if(invalidCoord) {
-			continue;
-		}
-		// check if it's overlapping with any other apples
-		for (i=0; i < this.yApples.length; i+=1) {
-			var kapple = {
-				x: this.yApples[i].x,
-				y: this.yApples[i].y,
-				image: gameui.images["yApple"].image
-			}
-			if (gameui.isOverlapping(newapple, kapple)) {
-				invalidCoord = true;
-				break;
-			}
-		}
-		if(invalidCoord) {
-			continue;
-		}
-		for (i=0; i < this.gApples.length; i+=2) {
-			var kapple = {
-				x: this.gApples[i],
-				y: this.gApples[i],
-				image: gameui.images["gApple"].image
-			}
-			if (gameui.isOverlapping(newapple, kapple)) {
-				invalidCoord = true;
-				break;
-			}
-		}
-		if(invalidCoord) {
-			continue;
-		}
-		break; //found the new coord
-	}
-	console.log("coord: %d, %d", coord[0], coord[1]);
-	return coord;
-}
-
-// judge if player can move in terms of their position(shouldn't go out of boundary)
-world_state.prototype.canMove = function(player, action){
-	
-
-}
-
-world_state.prototype.apply = function(action){
-	// judge if dead first
-	if(this.dead[action.player()])
-		return;
-
-	// do the action
-	switch(action.action){
-		case 38:	// UP
-//			if( this.)
-		break;
-		case 40:	// DOWN
-		break;
-		case 37:	// LEFT
-		break;
-		case 39:	// RIGHT
-		break;
-		case 65:	// FIRE
-		break;
-		default:
-		return;
-	}
-
-	// judge if ate any apple
-	
-	// judge if killed anyone
-
-	// update corresponding data
-
-}
-
-// return random number
-function genrandom(a, b){
-	return (Math.floor(Math.random() * (b - a + 1)) + a);
-}
-
-// sort function
-function my_sort(a, b){
-	return a.time - b.time;
-}
-
 
