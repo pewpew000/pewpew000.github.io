@@ -25,8 +25,9 @@ var mainCharacter = "elephant";
 var latencyList = [];
 
 // Global variables for background calculation
-speculation_k1 = 4; // for key actions
-speculation_k2 = 4; // for move actions
+speculation_k1 = 5; // for key actions
+speculation_k2 = 5; // for move actions
+refresh_req = 100; // in terms of milliseconds
 
 var imageLoader = {
 	loaded:true,
@@ -832,7 +833,7 @@ function GameUI (myCharacter) {
 			if(this.pending_k1 >= speculation_k1 || this.pending_k2 >= speculation_k2){
 			
 				// synchronize with prediction copy
-				if( this.myCharacter == "elephantack" ){
+/*				if( this.myCharacter == "elephantack" ){
 					synchronize(mainack, mainPlayer);
 				} else if( this.myCharacter == "birdack" ){
 					synchronize(birdack, birdPlayer);
@@ -843,6 +844,8 @@ function GameUI (myCharacter) {
 				}
 				this.pending_k1 = 0;
 				this.pending_k2 = 0;
+*/
+				synchAck(this);
 			}
 		} else { /* for the prediction world states */
 			// insert to local buffer immediately
@@ -1198,17 +1201,25 @@ function playGame() {
 //    	console.log(playersList["bird"].latencyList["elephant"]);
 
 	/* latency infomation initialize */
-    latencyList["elephant"] = { "bird": 60, "cat": 50, "bee": 50, "server": 100  };
+/*    latencyList["elephant"] = { "bird": 60, "cat": 50, "bee": 50, "server": 100  };
     latencyList["bird"]     = { "elephant": 60, "cat": 40, "bee": 40, "server": 120  };
     latencyList["cat"]      = { "elephant": 50, "bird": 40, "bee": 60, "server": 90  };
     latencyList["bee"]      = { "elephant": 50, "cat": 60, "bird": 40, "server": 110  };
     latencyList["server"]   = { "elephant": 100, "cat": 90, "bee": 110, "bird": 120  };
+*/
+
+    latencyList["elephant"] = { "bird": 10, "cat": 10, "bee": 10, "server": 20  };
+    latencyList["bird"]     = { "elephant": 10, "cat": 10, "bee": 10, "server": 20  };
+    latencyList["cat"]      = { "elephant": 10, "bird": 10, "bee": 10, "server": 20  };
+    latencyList["bee"]      = { "elephant": 10, "cat": 10, "bird": 10, "server": 20  };
+    latencyList["server"]   = { "elephant": 20, "cat": 20, "bee": 20, "bird": 20  };
 
 	mainPlayer.drawHearts();
 	mainPlayer.drawYbullets();
 	mainPlayer.drawGbullets();
 
-	bombInterval = setInterval(function(){drawBombs(mainPlayer);}, bombDrawRate);
+	// update bomb info for all worlds
+	setInterval(function(){drawBombs(mainPlayer);}, bombDrawRate);
 	setInterval(function(){drawBombs(mainack);}, bombDrawRate);
 	setInterval(function(){drawBombs(birdPlayer);}, bombDrawRate);
 	setInterval(function(){drawBombs(birdack);}, bombDrawRate);
@@ -1237,26 +1248,18 @@ function playGame() {
 	// generate apples at the server every interval
 	genApple();
 	setInterval(genApple, 10000);
-/*	for(i=0; i < 10; ++i) {
-		var coord = mainPlayer.getRandomAppleLocation();
-		if(coord.length > 0) {
-			mainPlayer.drawGreenApple(mainPlayer.getRandomAppleLocation());
-		}
-		coord = mainPlayer.getRandomAppleLocation();
-		if(coord.length > 0) {
-			mainPlayer.drawYellowApple(mainPlayer.getRandomAppleLocation());
-		}
-	}
-*/
 
 	// start AIs
-/*	birdPlayer.start_AI();
-    catPlayer.start_AI();
-    beePlayer.start_AI();
-*/	setInterval(function(){ birdPlayer.AI_move(); }, genRandom(20, 50));
+	setInterval(function(){ birdPlayer.AI_move(); }, genRandom(20, 50));
 	setInterval(function(){ catPlayer.AI_move(); }, genRandom(20, 50));
 	setInterval(function(){ beePlayer.AI_move(); }, genRandom(20, 50));
 
+	// refresh with interval
+/*	setInterval(function(){ synchAck(mainack);}, 100);
+	setInterval(function(){ synchAck(birdack);}, 100);
+	setInterval(function(){ synchAck(catack);}, 100);
+	setInterval(function(){ synchAck(beeack);}, 100);
+*/
 }
 
 function sendgApples(coord){
@@ -1388,6 +1391,27 @@ var settings = {
 function initgame(){
 	startscreen.init();
 	settings.init();
+}
+
+// synchronize world states: ack and prediction
+function synchAck(world){
+
+	if(world.pending_k1 == 0 && world.pending_k2 == 0) 
+		return;
+
+ 	// synchronize with prediction copy
+	if( world.myCharacter == "elephantack" ){
+    	synchronize(mainack, mainPlayer);
+    } else if( world.myCharacter == "birdack" ){
+        synchronize(birdack, birdPlayer);
+    } else if( world.myCharacter == "catack" ){
+        synchronize(catack, catPlayer);
+    } else {
+        synchronize(beeack, beePlayer);
+    }
+    
+    world.pending_k1 = 0;
+    world.pending_k2 = 0;
 }
 
 // synchronize world states: ack and prediction
