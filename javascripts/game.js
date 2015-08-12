@@ -9,7 +9,7 @@ var moveBy = 15;
 var appleExpiryDuration = 3000; //for testing, it's very large
 
 var moveBombBy = 10;
-var bombDrawRate = 50;
+var bombDrawRate = 50; //1000;
 var bombInterval = null;
 
 var images = {};
@@ -25,9 +25,15 @@ var mainCharacter = "elephant";
 var latencyList = [];
 
 // Global variables for background calculation
-speculation_k1 = 5; // for key actions
-speculation_k2 = 5; // for move actions
+speculation_k1 = 10; // for key actions
+speculation_k2 = 10; // for move actions
 refresh_req = 100; // in terms of milliseconds
+
+// Global varaibles for different strategies
+ var strategy = "linear"; // using linear consistency
+// var strategy = "spec_actions"; // using speculation on actions
+// var strategy = "hints"; // using hints
+
 
 var imageLoader = {
 	loaded:true,
@@ -351,7 +357,7 @@ function GameUI (myCharacter) {
 			this.clearCharacter(this.playerStates[key]);
 			if(key === "elephant" && this.myCharacter == "elephant") {
 				// TODO: indicate game over
-				alert("Game Over!");
+				// alert("Game Over!");
 			}
 		}
 		else {
@@ -720,27 +726,50 @@ function GameUI (myCharacter) {
 	// synchronize world states to be the same as the other
 	this.synchStates = function(other){
 		// clean speculating datas
-		this.pending_k1 = 0;
-		this.pending_k2 = 0;
-//		var coord = {x: 0, y: 0};
+		if(this.myCharacter == "elephant" || this.myCharacter == "bird" || this.myCharacter == "bee" || this.myCharacter == "cat"){
+			this.pending_k1 = 0;
+			this.pending_k2 = 0;
+		}
+		var coord = {x: 0, y: 0, image: images["yApple"]};
 
 		// yApples
 //		this.yApples.splice(0, this.yApples.length);
-/*		for(var i = 0; i < other.yApples.length; i += 2){
-			coord.x = other.yApples[i];
-			coord.y = other.yApples[i+1];
-			var ret = this.isCharacterAt(coord, "yApple");
-			if( ret[0] != true )
-			this.yApples.push(other.yApples[i]);
+		for(var i = this.yApples.length - 1; i > 0; i -= 2){
+			coord.x = this.yApples[i-1];
+			coord.y = this.yApples[i];
+			var ret = other.isCharacterAt(coord, "yApple");
+			if( ret == false ){
+				this.yApples.splice(i-1, 2);
+				this.clearCharacter(coord);
+			}
 		}
-*/		
+		
 		// gApples
-/*		this.gApples.splice(0, this.gApples.length)
-		for(var i = 0; i < other.gApples.length; i++)
-			this.gApples.push(other.gApples[i]);
-*/
+		for(var i = this.gApples.length - 1; i > 0; i -= 2){
+			coord.x = this.gApples[i-1];
+			coord.y = this.gApples[i];
+			var ret = other.isCharacterAt(coord, "gApple");
+			if( ret == false ){
+				this.gApples.splice(i-1, 2);
+				this.clearCharacter(coord);
+			}
+
+		}
+
 		// bombList : kind of messy to think about, need to think about it latter.
-/*		this.bombList.splice(0, this.bombList.length);
+//		if(this.bombList.length == 0){
+//		this.bombList.splice(0, this.bombList.length);
+/*		for(var i = 0; i < this.bombList.length; i++){
+			var img = {
+	            x: this.bombList[i].x,
+    	        y: this.bombList[i].y,
+        	    image: this.bombList[i].image
+        	};
+			this.clearCharacter(img);
+*///			this.bombList.splice(0,1);
+/*		}
+		this.bombList.splice(0, this.bombList.length);
+
 		for(var i = 0; i < other.bombList.length; i++)
 			this.bombList.push(other.bombList[i]);
 */
@@ -776,6 +805,7 @@ function GameUI (myCharacter) {
 				this.drawYbullets();
 				this.drawGbullets();
 			}
+			this.drawHearts();
 		}
 	};
 
@@ -803,13 +833,24 @@ function GameUI (myCharacter) {
 				break;
 			}
 
-			// set timeout to send info to all ack world states
-			setTimeout( function(){ mainack.localbuff(funcNum, Character, direction); }, latencyList["server"].elephant );
-			setTimeout( function(){ birdack.localbuff(funcNum, Character, direction); }, latencyList["server"].bird );
-			setTimeout( function(){  catack.localbuff(funcNum, Character, direction); }, latencyList["server"].cat );
-			setTimeout( function(){  beeack.localbuff(funcNum, Character, direction); }, latencyList["server"].bee );
+			/* behave differently for different strategies */
+			if(strategy != "linear"){
+				// set timeout to send info to all ack world states
+				setTimeout( function(){ mainack.localbuff(funcNum, Character, direction); }, latencyList["server"].elephant );
+				setTimeout( function(){ birdack.localbuff(funcNum, Character, direction); }, latencyList["server"].bird );
+				setTimeout( function(){  catack.localbuff(funcNum, Character, direction); }, latencyList["server"].cat );
+				setTimeout( function(){  beeack.localbuff(funcNum, Character, direction); }, latencyList["server"].bee );
+			} else {
+				setTimeout( function(){ mainPlayer.runFunc(funcNum, Character, direction); }, latencyList["server"].elephant );
+				setTimeout( function(){ birdPlayer.runFunc(funcNum, Character, direction); }, latencyList["server"].bird );
+				setTimeout( function(){  catPlayer.runFunc(funcNum, Character, direction); }, latencyList["server"].cat );
+				setTimeout( function(){  beePlayer.runFunc(funcNum, Character, direction); }, latencyList["server"].bee );
+			}
 
 		} else if(this.myCharacter == "elephantack" || this.myCharacter == "birdack" || this.myCharacter == "catack" || this.myCharacter == "beeack" ){
+			/* behave differently for different strategies */
+			if(strategy == "linear") return;
+
   			/* for the ack world states */
 			// insert to local buffer immediately
 			this.localbuffer.push( {player: Character, fNum: funcNum, dir: direction} );
@@ -831,63 +872,78 @@ function GameUI (myCharacter) {
             }
 
 			if(this.pending_k1 >= speculation_k1 || this.pending_k2 >= speculation_k2){
-			
-				// synchronize with prediction copy
-/*				if( this.myCharacter == "elephantack" ){
-					synchronize(mainack, mainPlayer);
-				} else if( this.myCharacter == "birdack" ){
-					synchronize(birdack, birdPlayer);
-				} else if( this.myCharacter == "catack" ){
-					synchronize(catack, catPlayer);
-				} else {
-					synchronize(beeack, beePlayer);
-				}
-				this.pending_k1 = 0;
-				this.pending_k2 = 0;
-*/
+		
+				if(this.myCharacter == "elephantack"){
+					console.log("catchyou");
+				}	
+				// synchronize with central
+				//this.synchStates(server);
+
+				// synchronize 
 				synchAck(this);
 			}
 		} else { /* for the prediction world states */
-			// insert to local buffer immediately
-			this.localbuffer.push( {player: Character, fNum: funcNum, dir: direction} );
+			/* differnt for different strategies */
+			if(strategy != "linear"){
+				// insert to local buffer immediately
+				this.localbuffer.push( {player: Character, fNum: funcNum, dir: direction} );
 
-			// update the number of actions in the buffer now
-			if(funcNum != 2){ // firing situation
-				if(this.pending_k1 < speculation_k1){ 
-//					this.bufferNum += 1;		// note down how many actions have been buffered
-					this.pending_k1 += 1;
-					if(funcNum == 0){
-						this.fireGreenBomb(Character, direction);
-					} else {
-						this.fireYellowBomb(Character, direction);
+				// update the number of actions in the buffer now
+				if(funcNum != 2){ // firing situation
+					if(this.pending_k1 < speculation_k1){ 
+	//					this.bufferNum += 1;		// note down how many actions have been buffered
+						this.pending_k1 += 1;
+						if(funcNum == 0){
+							this.fireGreenBomb(Character, direction);
+						} else {
+							this.fireYellowBomb(Character, direction);
+						}
+					} else {	// when firing speculation has come to limit
+						this.pending_k2 = speculation_k2;
 					}
-				} else {	// when firing speculation has come to limit
-					this.pending_k2 = speculation_k2;
+				} else {	// moving situation
+					if(this.pending_k2 < speculation_k2){
+//						this.bufferNum += 1;		// note down how many actions have been buffered
+						this.pending_k2 += 1;
+						this.moveCharacter(Character, direction);
+					} else {	// when moving speculation has come to limit
+						this.pending_k1 = speculation_k1;
+					}
 				}
-			} else {	// moving situation
-				if(this.pending_k2 < speculation_k2){
-//					this.bufferNum += 1;		// note down how many actions have been buffered
-					this.pending_k2 += 1;
-					this.moveCharacter(Character, direction);
-				} else {	// when moving speculation has come to limit
-					this.pending_k1 = speculation_k1;
-				}
-			}
 
-			// if is self action, set timeout and insert it to otherplayer's buffer
-			if(Character === this.myCharacter){
-				if(Character != "elephant")
-					setTimeout( function(){ mainPlayer.localbuff(funcNum, Character, direction); }, latencyList[Character].elephant);	// to all other players
-				if(Character != "bird")
-					setTimeout( function(){ birdPlayer.localbuff(funcNum, Character, direction); }, latencyList[Character].bird);	// to all other players
-				if(Character != "cat")
-					setTimeout( function(){ catPlayer.localbuff(funcNum, Character, direction); }, latencyList[Character].cat);	// to all other players
-				if(Character != "bee")
-					setTimeout( function(){ beePlayer.localbuff(funcNum, Character, direction); }, latencyList[Character].bee);	// to all other players
-				setTimeout( function(){ server.localbuff(funcNum, Character, direction); }, latencyList[Character].server);	// to the server
-			}	
+				// if is self action, set timeout and insert it to otherplayer's buffer
+				if(Character === this.myCharacter){
+					if(strategy == "hints"){
+						if(Character != "elephant")
+							setTimeout( function(){ mainPlayer.localbuff(funcNum, Character, direction); }, latencyList[Character].elephant);	// to all other players
+						if(Character != "bird")
+							setTimeout( function(){ birdPlayer.localbuff(funcNum, Character, direction); }, latencyList[Character].bird);	// to all other players
+						if(Character != "cat")
+							setTimeout( function(){ catPlayer.localbuff(funcNum, Character, direction); }, latencyList[Character].cat);	// to all other players
+						if(Character != "bee")
+							setTimeout( function(){ beePlayer.localbuff(funcNum, Character, direction); }, latencyList[Character].bee);	// to all other players
+					}
+					setTimeout( function(){ server.localbuff(funcNum, Character, direction); }, latencyList[Character].server);	// to the server
+				}
+			} else { // for linear consistency, just draw stuff when called localbuff.
+				setTimeout( function(){ server.localbuff(funcNum, Character, direction); }, latencyList[Character].server); // to the server
+			}
 		} 
 
+	};
+
+	this.runFunc = function(funcNum, Character, direction){
+		switch(funcNum){
+            case 0:
+               this.fireGreenBomb(Character, direction);
+            break;
+            case 1:
+               this.fireYellowBomb(Character, direction);
+            break;
+            case 2:
+               this.moveCharacter(Character, direction);
+            break;
+        }
 	};
 
 	this.run = function(){ // running until pending_k big enough
@@ -1118,17 +1174,27 @@ var keyHandler = {
 			    	if(this.Wkeydown) {
 //			    		mainPlayer.fireGreenBomb(mainCharacter, e.which);
 						// push action into local buffer
-						mainPlayer.localbuff(0, mainCharacter, e.which)
+/*						if(strategy == "linear"){
+							setTimeout(function(){ server.localbuff(0, mainCharacter, e.which); }, this.latencyList[this.myCharacter].server);
+						} else {*/
+							mainPlayer.localbuff(0, mainCharacter, e.which);
+//						}
 			    	}
 			    	else if(this.Dkeydown) {
 //			    		mainPlayer.fireYellowBomb(mainCharacter, e.which);
-						// push action to local buffer
-						mainPlayer.localbuff(1, mainCharacter, e.which)
+/*						if(strategy == "linear"){
+							setTimeout(function(){ server.localbuff(1, mainCharacter, e.which); }, this.latencyList[this.myCharacter].server);
+						} else {// push action to local buffer */
+							mainPlayer.localbuff(1, mainCharacter, e.which);
+//						}
 			    	}
 			    	else {
 //			    		mainPlayer.moveCharacter(mainCharacter, e.which);
-						// push action to local buffer
-						mainPlayer.localbuff(2, mainCharacter, e.which)
+/*						if(strategy == "linear"){
+							setTimeout(function(){ server.localbuff(2, mainCharacter, e.which); }, this.latencyList[this.myCharacter].server);
+						} else {// push action to local buffer */
+							mainPlayer.localbuff(2, mainCharacter, e.which);
+//						}
 			    	}
 			    break;
 			    case 87: //W -> G
@@ -1227,6 +1293,7 @@ function playGame() {
 	setInterval(function(){drawBombs(catack);}, bombDrawRate);
 	setInterval(function(){drawBombs(beePlayer);}, bombDrawRate);
 	setInterval(function(){drawBombs(beeack);}, bombDrawRate);
+	setInterval(function(){drawBombs(server);}, bombDrawRate); // server update bombs
 
 	// === init character positions === //
     initPositions(mainPlayer);
@@ -1250,9 +1317,9 @@ function playGame() {
 	setInterval(genApple, 10000);
 
 	// start AIs
-	setInterval(function(){ birdPlayer.AI_move(); }, genRandom(20, 50));
-	setInterval(function(){ catPlayer.AI_move(); }, genRandom(20, 50));
-	setInterval(function(){ beePlayer.AI_move(); }, genRandom(20, 50));
+	setInterval(function(){ birdPlayer.AI_move(); }, genRandom(100, 200));
+	setInterval(function(){ catPlayer.AI_move(); }, genRandom(100, 200));
+	setInterval(function(){ beePlayer.AI_move(); }, genRandom(100, 200));
 
 	// refresh with interval
 /*	setInterval(function(){ synchAck(mainack);}, 100);
