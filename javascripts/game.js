@@ -11,6 +11,7 @@ var appleExpiryDuration = 3000; //for testing, it's very large
 var moveBombBy = 10;
 var bombDrawRate = 50; //1000;
 var bombInterval = null;
+var bombRange = 2;
 
 var images = {};
 
@@ -66,6 +67,7 @@ var imageLoader = {
 // this is called inside setInterval
 // bomb element: x, y, dir, image
 //THIS SHOULD CHANGE
+/*
 function drawBombs(player) {
 	var i = player.bombList.length;
 	console.log("drawBombs: %d", mainPlayer.bombList.length);
@@ -158,6 +160,8 @@ function drawBombs(player) {
 		}
 	}
 }
+
+*/
 
 var context = 0;
 var canvas = 0;
@@ -546,7 +550,7 @@ function GameUI (myCharacter) {
 	//   Whoever fires a yellow bomb, is given by the imgkey (e.g. "bee").
 	//   Given the fire direction, add the bomb into the bomblist
 	//   The bomblist elements are printed at every bombDrawRate by DrawBombs()
-
+/*
 	this.fireYellowBomb = function(imgkey, dir) {
 		if((this.playerStates[imgkey].yBulletsNum == 0) || (dir != 39 && dir != 37))
 		{
@@ -570,13 +574,43 @@ function GameUI (myCharacter) {
 		(this.playerStates[imgkey].yBulletsNum)--;
 		this.drawYbullets();
 	};
+*/
+	this.fireYellowBomb = function(imgkey, dir) {
+        if(this.playerStates[imgkey].yBulletsNum == 0 || (dir != 39 && dir != 37))
+        {
+            return;
+        }
+
+        settings.makeSound("shoot");
+
+        var ybomb = {
+                x: this.playerStates[imgkey].x,
+                y: this.playerStates[imgkey].y + (Math.max(0, images[imgkey].height - images["explosion"].height) / 2),
+                dir: dir,
+                image: images["explosion"]
+        };
+
+        // set the coordinate accordingly
+        if(dir === 39) { // DOWN
+            ybomb.x += (images[imgkey].width + 1);
+        } else { // UP
+            ybomb.x -= (images["explosion"].width+1);
+        }
+
+        // check the firing range and update player state if in fire range
+        this.checkRange(ybomb, this.myCharacter);
+
+        // update bullet info
+        (this.playerStates[imgkey].yBulletsNum)--;
+        this.drawYbullets();
+    };
 
 	// === fireGreenBomb === //
 	//   Whoever fires a green bomb, is given by the imgkey (e.g. "bee").
 	//   Given the fire direction, add the bomb into the bomblist
 	//   The bomblist elements are printed at every bombDrawRate by DrawBombs()
 
-	this.fireGreenBomb = function(imgkey, dir) {
+/*	this.fireGreenBomb = function(imgkey, dir) {
 		if(this.playerStates[imgkey].gBulletsNum == 0 || (dir != 38 && dir != 40))
 		{
 			return;
@@ -598,6 +632,165 @@ function GameUI (myCharacter) {
 		this.bombList.push(gbomb);
 		(this.playerStates[imgkey].gBulletsNum)--;
 		this.drawGbullets();
+	};
+*/
+	// === New version of fireGreenBomb === //
+	// to fulfill the goal that only order matters, the old logic will make this
+	// really hard to acheve. Thus change this function to a easier version. it 
+	// only check if there is anyone in the range of its fire range. for mainPla
+	// -er, draw the fire range.
+	
+	this.fireGreenBomb = function(imgkey, dir) {
+		if(this.playerStates[imgkey].gBulletsNum == 0 || (dir != 38 && dir != 40))
+		{
+			return;
+		}
+
+		settings.makeSound("shoot");
+
+		var gbomb = {
+				x: this.playerStates[imgkey].x + (images[imgkey].width / 2),
+				y: this.playerStates[imgkey].y,
+				dir: dir,
+				image: images["explosion"]
+		};
+
+		// set the coordinate accordingly
+		if(dir === 40) { // DOWN
+			gbomb.y += (images[imgkey].height+1);
+		} else { // UP
+			gbomb.y -= (images["explosion"].height+1);
+		}
+		
+		// check the firing range and update player state if in fire range
+		this.checkRange(gbomb, this.myCharacter);
+
+		// update bullet info
+		(this.playerStates[imgkey].gBulletsNum)--;
+		this.drawGbullets();
+	};
+
+	// === check if anyone in fireRange === //
+	// it will update world state if anyone in the range
+	this.checkRange = function(bomb){
+
+		// check all players to check if overlapped
+		for(k in this.playerStates){
+            if(!(k === "elephant" || k === "bird" || k === "bee" || k === "cat"))
+               continue;
+
+        	var kcharacter = {
+            	x: this.playerStates[k].x,
+                y: this.playerStates[k].y,
+                image: images[k]
+            };
+			
+			var localbomb = {
+				x: bomb.x,
+				y: bomb.y,
+				dir: bomb.dir,
+				image: bomb.image
+			};
+			
+			for(var i = 0; i < bombRange; i++){	
+	            if(isOverlapping(localbomb, kcharacter)){
+                    this.damageCharacter(k);
+					break;
+                }
+				
+				 // update bomb coord
+          	  switch(localbomb.dir){
+            	    case 37: // LEFT
+                	    localbomb.x -= localbomb.image.width;
+	                break;
+    	            case 39: // RIGHT
+        	            localbomb.x += localbomb.image.width;
+            	    break;
+               		case 38: // UP
+                    	localbomb.y -= localbomb.image.height;
+	                break;
+    	            case 40: // DOWN
+        	            localbomb.y += localbomb.image.height;
+            	    break;
+	            }
+
+	            // check if out of range
+    	        if(reachedEnd(localbomb))
+        	        break;
+            }
+        }
+
+		for(var i = 0; i < bombRange; i++){
+			// check all players to check if overlapped
+/*			for(k in this.playerStates){
+				if(!(k === "elephant" || k === "bird" || k === "bee" || k === "cat"))
+					continue;
+				
+				var kcharacter = {
+                    x: this.playerStates[k].x,
+                    y: this.playerStates[k].y,
+                    image: images[k]
+                };
+
+				if(isOverlapping(bomb, kcharacter)){
+					if(dead[k] == 1){
+						this.damageCharacter(k);
+						dead[k] = 0;
+					}
+				}
+			}
+*/
+			// for the mainPlayer, draw the range
+			if(this.myCharacter == "elephant"){
+				context.drawImage(bomb.image, bomb.x, bomb.y);
+				//setTimeout(this.clearCharacter(bomb), 5000);
+				setTimeout( cleanFire(bomb.x, bomb.y), 1000);
+			
+				// check if the bomb is overlapping with any apple, if so, redraw apple
+    	        for (j=0; j < mainPlayer.yApples.length; j+=2) {
+        	        var kapple = {
+            	        x: mainPlayer.yApples[j],
+                	    y: mainPlayer.yApples[j+1],
+                    	image: images["yApple"]
+              	  	}
+                	if (isOverlapping(bomb, kapple)) {
+                    	context.drawImage(images["yApple"], kapple.x, kapple.y);
+                    //	break;
+                	}
+            	}
+ 	           for (j=0; j < mainPlayer.gApples.length; j+=2) {
+    	            var kapple = {
+        	            x: mainPlayer.gApples[j],
+            	        y: mainPlayer.gApples[j+1],
+                	    image: images["gApple"]
+              		  }
+               		if (isOverlapping(bomb, kapple)) {
+                    	context.drawImage(images["gApple"], kapple.x, kapple.y);
+                    //break;
+                	}
+            	}
+			}
+
+			// update bomb coord
+			switch(bomb.dir){
+				case 37: // LEFT
+					bomb.x -= bomb.image.width;
+				break;
+				case 39: // RIGHT
+					bomb.x += bomb.image.width;
+				break;
+				case 38: // UP
+					bomb.y -= bomb.image.height;
+				break;
+				case 40: // DOWN
+					bomb.y += bomb.image.height;
+				break;
+			}
+
+			// check if out of range
+			if(reachedEnd(bomb))
+				break;
+		}
 	};
 
 	// === canMove === //
@@ -859,15 +1052,18 @@ function GameUI (myCharacter) {
 			switch(funcNum){
                 case 0:
                     this.fireGreenBomb(Character, direction);
-					this.pending_k1++;
+					if(Character == this.myCharacter)
+						this.pending_k1++;
                 break;
                 case 1:
                     this.fireYellowBomb(Character, direction);
-					this.pending_k1++;
+					if(Character == this.myCharacter)
+						this.pending_k1++;
                 break;
                 case 2:
                     this.moveCharacter(Character, direction);
-					this.pending_k2++;
+					if(Character == this.myCharacter)
+						this.pending_k2++;
                 break;
             }
 
@@ -1110,21 +1306,32 @@ function GameUI (myCharacter) {
 	// judge if can kill. if can kill then how to kill, if can't return 0
 	this.cankill = function(killer, victim){
 		var res = [];
-		if( Math.abs(this.playerStates[killer].x - this.playerStates[victim].x) < images["yBomb"].height ){
-			res[0] = 1;
-			if(this.playerStates[killer].y > this.playerStates[victim].y){
-				res[1] = 38; // fire up
+		if( Math.abs(this.playerStates[killer].x - this.playerStates[victim].x) < images["explosion"].width ){
+//			res[0] = 1; // the 
+			if(Math.abs(this.playerStates[killer].y - this.playerStates[victim].y) <= images["explosion"].height * bombRange){
+				res[0] = 1;
+				if(this.playerStates[killer].y > this.playerStates[victim].y){
+					res[1] = 38; // fire up
+				} else {
+					res[1] = 40; // fire down
+				}
 			} else {
-				res[1] = 40; // fire down
+				return (res[0] = 0); // fire down
 			}
 			return res;
 		}
-		if( Math.abs(this.playerStates[killer].y - this.playerStates[victim].y) < images["yBomb"].width ){
-			res[0] = 2;
-			if(this.playerStates[killer].x > this.playerStates[victim].x){
-				res[1] = 37;
+
+		if( Math.abs(this.playerStates[killer].y - this.playerStates[victim].y) < images["explosion"].height ){
+//			res[0] = 2;
+			if(Math.abs(this.playerStates[killer].x - this.playerStates[victim].x) <= images["explosion"].width * bombRange){
+				res[0] = 2;
+				if(this.playerStates[killer].x > this.playerStates[victim].x){
+					res[1] = 37;
+				} else {
+					res[1] = 39;
+				}
 			} else {
-				res[1] = 39;
+				return (res[0] = 0);
 			}
 			return res;
 		}
@@ -1132,6 +1339,16 @@ function GameUI (myCharacter) {
 		return (res[0] = 0);
 	};
 }
+
+// === clean fire == //
+function cleanFire(x, y){
+    return function(){
+		context.clearRect(x, y,
+                          images["explosion"].width,
+                          images["explosion"].height)
+    };
+}
+
 
 // === clean apple === //
 function cleangApple(self, img){
@@ -1285,7 +1502,7 @@ function playGame() {
 	mainPlayer.drawGbullets();
 
 	// update bomb info for all worlds
-	setInterval(function(){drawBombs(mainPlayer);}, bombDrawRate);
+/*	setInterval(function(){drawBombs(mainPlayer);}, bombDrawRate);
 	setInterval(function(){drawBombs(mainack);}, bombDrawRate);
 	setInterval(function(){drawBombs(birdPlayer);}, bombDrawRate);
 	setInterval(function(){drawBombs(birdack);}, bombDrawRate);
@@ -1294,7 +1511,7 @@ function playGame() {
 	setInterval(function(){drawBombs(beePlayer);}, bombDrawRate);
 	setInterval(function(){drawBombs(beeack);}, bombDrawRate);
 	setInterval(function(){drawBombs(server);}, bombDrawRate); // server update bombs
-
+*/
 	// === init character positions === //
     initPositions(mainPlayer);
     initPositions(birdPlayer);
@@ -1317,9 +1534,9 @@ function playGame() {
 	setInterval(genApple, 10000);
 
 	// start AIs
-	setInterval(function(){ birdPlayer.AI_move(); }, genRandom(100, 200));
-	setInterval(function(){ catPlayer.AI_move(); }, genRandom(100, 200));
-	setInterval(function(){ beePlayer.AI_move(); }, genRandom(100, 200));
+	setInterval(function(){ birdPlayer.AI_move(); }, genRandom(500, 1000));
+	setInterval(function(){ catPlayer.AI_move(); }, genRandom(500, 1000));
+	setInterval(function(){ beePlayer.AI_move(); }, genRandom(500, 1000));
 
 	// refresh with interval
 /*	setInterval(function(){ synchAck(mainack);}, 100);
