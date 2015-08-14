@@ -26,8 +26,8 @@ var mainCharacter = "elephant";
 var latencyList = [];
 
 // Global variables for background calculation
-speculation_k1 = 10; // for key actions
-speculation_k2 = 10; // for move actions
+speculation_k1 = 3; // for key actions
+speculation_k2 = 3; // for move actions
 refresh_req = 100; // in terms of milliseconds
 
 // Global varaibles for different strategies
@@ -59,109 +59,20 @@ var imageLoader = {
 					$('#gametop').show();
 					playGame();
 				});
+				$('#tutorial').click(function(){
+					$('#tutorial').hide();
+                    $('#gametop').show();
+                    playGame();
+				});
+				$('#tutorial').keypress(function(){
+					$('#tutorial').hide();
+                    $('#gametop').show();
+                    playGame();
+				});
     		}
     	}
     }
 }
-
-// this is called inside setInterval
-// bomb element: x, y, dir, image
-//THIS SHOULD CHANGE
-/*
-function drawBombs(player) {
-	var i = player.bombList.length;
-	console.log("drawBombs: %d", mainPlayer.bombList.length);
-	//go backward as we might remove the bullet
-	while(i--) {
-		var new_x = player.bombList[i].x;
-		var new_y = player.bombList[i].y;
-		var bulletRemoved = false;
-
-		var img = {
-			x: new_x,
-			y: new_y,
-			image: player.bombList[i].image
-		};
-
-		if(player.myCharacter == "elephant"){ // if it is the mainCharacter, need to check these
-			player.clearCharacter(img);
-
-			// check if the bomb is overlapping with any apple, if so, redraw apple
-			for (j=0; j < mainPlayer.yApples.length; j+=2) {
-				var kapple = {
-					x: mainPlayer.yApples[j],
-					y: mainPlayer.yApples[j+1],
-					image: images["yApple"]
-				}
-				if (isOverlapping(img, kapple)) {
-					context.drawImage(images["yApple"], kapple.x, kapple.y);
-					break;
-				}
-			}
-			for (j=0; j < mainPlayer.gApples.length; j+=2) {
-				var kapple = {
-					x: mainPlayer.gApples[j],
-					y: mainPlayer.gApples[j+1],
-					image: images["gApple"]
-				}
-				if (isOverlapping(img, kapple)) {
-					context.drawImage(images["gApple"], kapple.x, kapple.y);
-					break;
-				}
-			}
-		}
-
-		switch(player.bombList[i].dir) {
-			case 39: //right
-			new_x += moveBombBy;
-			break;
-			case 37: //left
-			new_x -= moveBombBy;
-			break;
-			case 38: //up
-			new_y -= moveBombBy;
-			break;
-			case 40: //down
-			new_y += moveBombBy;
-			default:
-			break;
-		}
-
-		img.x = new_x;
-		img.y = new_y;
-
-		// check if the bomb is overlapping with any character
-		for(k in player.playerStates) {
-			if(!player.isPlayer(k)) {
-				continue;
-			}
-			if(isOverlapping(img, player.playerStates[k]) && player.playerStates[k].heartsNum > 0) {
-				// damage the character
-				player.damageCharacter(k);
-
-				// Remove bullet
-				player.bombList.splice(i,1);
-				bulletRemoved = true;
-			}
-		}
-
-		// if reached the end of canvas, clear it and remove from bombList
-		if(reachedEnd(img)) {
-			// clear the bullet and remove from bombList
-			player.bombList.splice(i,1);
-			bulletRemoved = true;
-		}
-
-		if(!bulletRemoved) {
-			if(player.myCharacter == "elephant")
-				context.drawImage(mainPlayer.bombList[i].image, img.x, img.y);
-			player.bombList[i].x = new_x;
-			player.bombList[i].y = new_y;
-		}
-	}
-}
-
-*/
 
 var context = 0;
 var canvas = 0;
@@ -354,18 +265,19 @@ function GameUI (myCharacter) {
 
 	this.damageCharacter = function(key) {
 		(this.playerStates[key].heartsNum)--;
-		this.drawHearts();
-		if(this.playerStates[key].heartsNum <= 0) {
-			//dead
-			settings.makeSound("dead");
-			this.clearCharacter(this.playerStates[key]);
-			if(key === "elephant" && this.myCharacter == "elephant") {
-				// TODO: indicate game over
-				// alert("Game Over!");
+		if(this.myCharacter == "elephant"){
+			this.drawHearts();
+			if(this.playerStates[key].heartsNum <= 0) {
+				//dead
+				settings.makeSound("dead");
+				this.clearCharacter(this.playerStates[key]);
+				if(key === "elephant") {
+					// TODO: indicate game over
+					// alert("Game Over!");
+				}
+			} else {
+				settings.makeSound("hiccup");
 			}
-		}
-		else {
-			settings.makeSound("hiccup");
 		}
 	};
 
@@ -407,12 +319,12 @@ function GameUI (myCharacter) {
 				if (!(k === "elephant" || k === "bird" || k === "bee" || k === "cat")) {
 					continue;
 				}
-				var kcharacter = {
+/*				var kcharacter = {
 					x: this.playerStates[k].x,
 					y: this.playerStates[k].y,
 					image: images[k]
 				};
-				if (isOverlapping(newapple, kcharacter)) {
+*/				if (isOverlapping(newapple, this.playerStates[k])) {
 					invalidCoord = true;
 					break;
 				}
@@ -502,16 +414,7 @@ function GameUI (myCharacter) {
 				y: coord[1],
 				image: images["yApple"]
 			}
-			//THIS SHOULD CHANGE!
-/*			setTimeout(function() {
-				var ret = this.isCharacterAt(img, "yApple");
-				if(ret[0] == true) {
-					this.clearCharacter(img);
-					//remove apple positions from yApples
-					this.yApples.splice(ret[1], 2);
-				}
-			}, appleExpiryDuration);
-*/
+
 			setTimeout(cleanyApple(this, img), appleExpiryDuration);
 		}
 	};
@@ -532,16 +435,7 @@ function GameUI (myCharacter) {
 				y: coord[1],
 				image: images["gApple"]
 			}
-			//THIS SHOULD CHANGE!
-/*			setTimeout(function() {
-				var ret = this.isCharacterAt(img, "gApple");
-				if(ret[0] == true) {
-					this.clearCharacter(img);
-					//remove apple positions from gApples
-					this.gApples.splice(ret[1], 2);
-				}
-			}, appleExpiryDuration);
-*/
+
 			setTimeout(cleangApple(this, img), appleExpiryDuration);
 		}
 	};
@@ -550,31 +444,6 @@ function GameUI (myCharacter) {
 	//   Whoever fires a yellow bomb, is given by the imgkey (e.g. "bee").
 	//   Given the fire direction, add the bomb into the bomblist
 	//   The bomblist elements are printed at every bombDrawRate by DrawBombs()
-/*
-	this.fireYellowBomb = function(imgkey, dir) {
-		if((this.playerStates[imgkey].yBulletsNum == 0) || (dir != 39 && dir != 37))
-		{
-			return;
-		}
-
-		settings.makeSound("shoot");
-		var ybomb = {
-				x: this.playerStates[imgkey].x,
-				y: this.playerStates[imgkey].y + (Math.max(0, images[imgkey].height - images["yBomb"].height) / 2),
-				dir: dir,
-				image: images["yBomb"]
-		};
-
-		if(dir === 39) { //right
-			ybomb.x += images[imgkey].width;
-		} else { //left
-			ybomb.x -= images["yBomb"].width;
-		}
-		this.bombList.push(ybomb);
-		(this.playerStates[imgkey].yBulletsNum)--;
-		this.drawYbullets();
-	};
-*/
 	this.fireYellowBomb = function(imgkey, dir) {
         if(this.playerStates[imgkey].yBulletsNum == 0 || (dir != 39 && dir != 37))
         {
@@ -610,30 +479,6 @@ function GameUI (myCharacter) {
 	//   Given the fire direction, add the bomb into the bomblist
 	//   The bomblist elements are printed at every bombDrawRate by DrawBombs()
 
-/*	this.fireGreenBomb = function(imgkey, dir) {
-		if(this.playerStates[imgkey].gBulletsNum == 0 || (dir != 38 && dir != 40))
-		{
-			return;
-		}
-
-		settings.makeSound("shoot");
-		var gbomb = {
-				x: this.playerStates[imgkey].x + (images[imgkey].width / 2),
-				y: this.playerStates[imgkey].y,
-				dir: dir,
-				image: images["gBomb"]
-		};
-
-		if(dir === 40) { //down
-			gbomb.y += images[imgkey].height;
-		} else { //up
-			gbomb.y -= images["gBomb"].height;
-		}
-		this.bombList.push(gbomb);
-		(this.playerStates[imgkey].gBulletsNum)--;
-		this.drawGbullets();
-	};
-*/
 	// === New version of fireGreenBomb === //
 	// to fulfill the goal that only order matters, the old logic will make this
 	// really hard to acheve. Thus change this function to a easier version. it 
@@ -649,7 +494,7 @@ function GameUI (myCharacter) {
 		settings.makeSound("shoot");
 
 		var gbomb = {
-				x: this.playerStates[imgkey].x + (images[imgkey].width / 2),
+				x: this.playerStates[imgkey].x + 5, // + (images["explosion"].width / 2),
 				y: this.playerStates[imgkey].y,
 				dir: dir,
 				image: images["explosion"]
@@ -722,29 +567,11 @@ function GameUI (myCharacter) {
 
 		for(var i = 0; i < bombRange; i++){
 			// check all players to check if overlapped
-/*			for(k in this.playerStates){
-				if(!(k === "elephant" || k === "bird" || k === "bee" || k === "cat"))
-					continue;
-				
-				var kcharacter = {
-                    x: this.playerStates[k].x,
-                    y: this.playerStates[k].y,
-                    image: images[k]
-                };
-
-				if(isOverlapping(bomb, kcharacter)){
-					if(dead[k] == 1){
-						this.damageCharacter(k);
-						dead[k] = 0;
-					}
-				}
-			}
-*/
 			// for the mainPlayer, draw the range
 			if(this.myCharacter == "elephant"){
 				context.drawImage(bomb.image, bomb.x, bomb.y);
 				//setTimeout(this.clearCharacter(bomb), 5000);
-				setTimeout( cleanFire(bomb.x, bomb.y), 1000);
+				setTimeout( cleanFire(bomb.x, bomb.y, this), 500);
 			
 				// check if the bomb is overlapping with any apple, if so, redraw apple
     	        for (j=0; j < mainPlayer.yApples.length; j+=2) {
@@ -793,6 +620,39 @@ function GameUI (myCharacter) {
 		}
 	};
 
+	// === cleanFire === //
+/*	this.cleanFire = function(x, y){
+    	return function(){
+
+       		context.clearRect(x, y,
+            	              images["explosion"].width,
+                	          images["explosion"].height);
+			var bomb = {
+				x: x,
+				y: y,
+				image: images["explosion"]
+			};
+			for(k in this.playerStates){
+				if(!(k == "elephant" || k == "bird" || k == "cat" || k == "bee"))
+					continue;
+
+				var kCharacter = {
+					x: this.playerStates[k].x,
+					y: this.playerStates[k].y,
+					image: images[k]
+				};
+
+				if(isOverlapping(kCharacter, bomb)){
+					if(this.playerStates[k].heartsNum > 0){
+						this.drawCharacter(k);
+					} else {
+						this.cleanCharacter(this.playerStates[k]);
+					}
+				}
+			}
+		};
+	};
+*/
 	// === canMove === //
 	//   Returns true or false whether the character of the given key can move into the given coordinates, x and y.
 	//   If there's an apple in the way, eat the apple
@@ -926,7 +786,6 @@ function GameUI (myCharacter) {
 		var coord = {x: 0, y: 0, image: images["yApple"]};
 
 		// yApples
-//		this.yApples.splice(0, this.yApples.length);
 		for(var i = this.yApples.length - 1; i > 0; i -= 2){
 			coord.x = this.yApples[i-1];
 			coord.y = this.yApples[i];
@@ -949,23 +808,6 @@ function GameUI (myCharacter) {
 
 		}
 
-		// bombList : kind of messy to think about, need to think about it latter.
-//		if(this.bombList.length == 0){
-//		this.bombList.splice(0, this.bombList.length);
-/*		for(var i = 0; i < this.bombList.length; i++){
-			var img = {
-	            x: this.bombList[i].x,
-    	        y: this.bombList[i].y,
-        	    image: this.bombList[i].image
-        	};
-			this.clearCharacter(img);
-*///			this.bombList.splice(0,1);
-/*		}
-		this.bombList.splice(0, this.bombList.length);
-
-		for(var i = 0; i < other.bombList.length; i++)
-			this.bombList.push(other.bombList[i]);
-*/
 		// playerStates
 		for(k in this.playerStates){ // x: 0, y: 0, yBulletsNum: 3, gBulletsNum: 2, heartsNum: 5
 			var changed = [];
@@ -1052,17 +894,17 @@ function GameUI (myCharacter) {
 			switch(funcNum){
                 case 0:
                     this.fireGreenBomb(Character, direction);
-					if(Character == this.myCharacter)
+					if(Character.substr(0,3) == this.myCharacter.substr(0,3))
 						this.pending_k1++;
                 break;
                 case 1:
                     this.fireYellowBomb(Character, direction);
-					if(Character == this.myCharacter)
+					if(Character.substr(0,3) == this.myCharacter.substr(0,3))
 						this.pending_k1++;
                 break;
                 case 2:
                     this.moveCharacter(Character, direction);
-					if(Character == this.myCharacter)
+					if(Character.substr(0,3) == this.myCharacter.substr(0,3))
 						this.pending_k2++;
                 break;
             }
@@ -1072,8 +914,6 @@ function GameUI (myCharacter) {
 				if(this.myCharacter == "elephantack"){
 					console.log("catchyou");
 				}	
-				// synchronize with central
-				//this.synchStates(server);
 
 				// synchronize 
 				synchAck(this);
@@ -1087,8 +927,8 @@ function GameUI (myCharacter) {
 				// update the number of actions in the buffer now
 				if(funcNum != 2){ // firing situation
 					if(this.pending_k1 < speculation_k1){ 
-	//					this.bufferNum += 1;		// note down how many actions have been buffered
-						this.pending_k1 += 1;
+						if(Character == this.myCharacter) // adddddddddddddddddddddddddd
+							this.pending_k1 += 1;
 						if(funcNum == 0){
 							this.fireGreenBomb(Character, direction);
 						} else {
@@ -1100,7 +940,8 @@ function GameUI (myCharacter) {
 				} else {	// moving situation
 					if(this.pending_k2 < speculation_k2){
 //						this.bufferNum += 1;		// note down how many actions have been buffered
-						this.pending_k2 += 1;
+						if(Character == this.myCharacter) // adddddddddddddddddd
+							this.pending_k2 += 1;
 						this.moveCharacter(Character, direction);
 					} else {	// when moving speculation has come to limit
 						this.pending_k1 = speculation_k1;
@@ -1341,14 +1182,38 @@ function GameUI (myCharacter) {
 }
 
 // === clean fire == //
-function cleanFire(x, y){
+function cleanFire(x, y, world){
     return function(){
+
 		context.clearRect(x, y,
                           images["explosion"].width,
-                          images["explosion"].height)
+                          images["explosion"].height);
+        var bomb = {
+            x: x,
+            y: y,
+            image: images["explosion"]
+        };
+        for(k in world.playerStates){
+            if(!(k == "elephant" || k == "bird" || k == "cat" || k == "bee"))
+                continue;
+/*
+            var kCharacter = {
+                x: world.playerStates[k].x,
+                y: world.playerStates[k].y,
+                image: images[k]
+            };
+*/
+            if(isOverlapping(world.playerStates[k], bomb)){
+                if(world.playerStates[k].heartsNum > 0){
+                    world.drawCharacter(k);
+                } else {
+                    world.clearCharacter(world.playerStates[k]);
+                }
+            }
+        }
     };
-}
 
+}
 
 // === clean apple === //
 function cleangApple(self, img){
@@ -1357,8 +1222,20 @@ function cleangApple(self, img){
     	if(ret[0] == true) {
     		self.clearCharacter(img);
         	//remove apple positions from gApples
-       	 self.gApples.splice(ret[1], 2);
+       	 	self.gApples.splice(ret[1], 2);
     	}
+
+		if(self.myCharacter == "elephant"){
+            for(k in self.playerCharacters){
+                if(!(k == "elephant" || k == "cat" || k == "bee" || k == "bird"))
+                    continue;
+                
+                if(isOverlapping(img, self.playerStates[k])){
+                    self.drawCharacter(self.playerStates[k]);
+                }
+            }
+        }
+
 	}
 }
 
@@ -1370,6 +1247,17 @@ function cleanyApple(self, img){
             //remove apple positions from gApples
          self.yApples.splice(ret[1], 2);
         }
+
+		if(self.myCharacter == "elephant"){
+			for(k in self.playerCharacters){
+				if(!(k == "elephant" || k == "cat" || k == "bee" || k == "bird"))
+					continue;
+
+				if(isOverlapping(img, self.playerStates[k])){
+					self.drawCharacter(self.playerStates[k]);
+				}
+			}
+		}
     }
 }
 
@@ -1378,9 +1266,6 @@ function cleanyApple(self, img){
 //  Key press only affects the main character
 
 var keyHandler = {
-	Wkeydown: false,
-	Dkeydown: false,
-
 	init:function() {
 		$('html').keydown(function(e){
 		    switch(e.which) {
@@ -1388,55 +1273,25 @@ var keyHandler = {
 			    case 39: //right
 			    case 40: //down
 			    case 37: //left
-			    	if(this.Wkeydown) {
-//			    		mainPlayer.fireGreenBomb(mainCharacter, e.which);
-						// push action into local buffer
-/*						if(strategy == "linear"){
-							setTimeout(function(){ server.localbuff(0, mainCharacter, e.which); }, this.latencyList[this.myCharacter].server);
-						} else {*/
-							mainPlayer.localbuff(0, mainCharacter, e.which);
-//						}
-			    	}
-			    	else if(this.Dkeydown) {
-//			    		mainPlayer.fireYellowBomb(mainCharacter, e.which);
-/*						if(strategy == "linear"){
-							setTimeout(function(){ server.localbuff(1, mainCharacter, e.which); }, this.latencyList[this.myCharacter].server);
-						} else {// push action to local buffer */
-							mainPlayer.localbuff(1, mainCharacter, e.which);
-//						}
-			    	}
-			    	else {
-//			    		mainPlayer.moveCharacter(mainCharacter, e.which);
-/*						if(strategy == "linear"){
-							setTimeout(function(){ server.localbuff(2, mainCharacter, e.which); }, this.latencyList[this.myCharacter].server);
-						} else {// push action to local buffer */
-							mainPlayer.localbuff(2, mainCharacter, e.which);
-//						}
-			    	}
+					mainPlayer.localbuff(2, mainCharacter, e.which);
 			    break;
-			    case 87: //W -> G
-			    	this.Wkeydown = true;
+			    case 87: // W -> G
+					mainPlayer.localbuff(0, mainCharacter, 38);
 			    break;
-			    case 68: //D -> Y
-			    	this.Dkeydown = true;
+			    case 83: // S -> G
+					mainPlayer.localbuff(0, mainCharacter, 40);
+			    break;
+			    case 65: // A -> Y
+					mainPlayer.localbuff(1, mainCharacter, 37);
+			    break;
+			    case 68: // D -> Y
+					mainPlayer.localbuff(1, mainCharacter, 39);
 			    break;
 			    default:
 			    break;
 			}
 		});
 
-		$('html').keyup(function(e){
-		    switch(e.which) {
-			    case 87: //W for Green
-			    	this.Wkeydown = false;
-			    break;
-			    case 68: //D for Yellow
-			    	this.Dkeydown = false;
-			    break;
-			    default:
-			    break;
-			}
-		});
 	},
 }
 
@@ -1484,19 +1339,19 @@ function playGame() {
 //    	console.log(playersList["bird"].latencyList["elephant"]);
 
 	/* latency infomation initialize */
-/*    latencyList["elephant"] = { "bird": 60, "cat": 50, "bee": 50, "server": 100  };
+    latencyList["elephant"] = { "bird": 60, "cat": 50, "bee": 50, "server": 100  };
     latencyList["bird"]     = { "elephant": 60, "cat": 40, "bee": 40, "server": 120  };
     latencyList["cat"]      = { "elephant": 50, "bird": 40, "bee": 60, "server": 90  };
     latencyList["bee"]      = { "elephant": 50, "cat": 60, "bird": 40, "server": 110  };
     latencyList["server"]   = { "elephant": 100, "cat": 90, "bee": 110, "bird": 120  };
-*/
 
+/*
     latencyList["elephant"] = { "bird": 10, "cat": 10, "bee": 10, "server": 20  };
     latencyList["bird"]     = { "elephant": 10, "cat": 10, "bee": 10, "server": 20  };
     latencyList["cat"]      = { "elephant": 10, "bird": 10, "bee": 10, "server": 20  };
     latencyList["bee"]      = { "elephant": 10, "cat": 10, "bird": 10, "server": 20  };
     latencyList["server"]   = { "elephant": 20, "cat": 20, "bee": 20, "bird": 20  };
-
+*/
 	mainPlayer.drawHearts();
 	mainPlayer.drawYbullets();
 	mainPlayer.drawGbullets();
@@ -1530,13 +1385,13 @@ function playGame() {
 
 
 	// generate apples at the server every interval
-	genApple();
+	//genApple();
 	setInterval(genApple, 10000);
 
 	// start AIs
-	setInterval(function(){ birdPlayer.AI_move(); }, genRandom(500, 1000));
-	setInterval(function(){ catPlayer.AI_move(); }, genRandom(500, 1000));
-	setInterval(function(){ beePlayer.AI_move(); }, genRandom(500, 1000));
+//	setInterval(function(){ birdPlayer.AI_move(); }, genRandom(500, 1000));
+//	setInterval(function(){ catPlayer.AI_move(); }, genRandom(500, 1000));
+//	setInterval(function(){ beePlayer.AI_move(); }, genRandom(500, 1000));
 
 	// refresh with interval
 /*	setInterval(function(){ synchAck(mainack);}, 100);
@@ -1576,6 +1431,7 @@ function genApple(){
         if(coord.length > 0) {
             server.drawGreenApple(coord);
         }
+
         coord = server.getRandomAppleLocation();
         if(coord.length > 0) {
             server.drawYellowApple(coord);
