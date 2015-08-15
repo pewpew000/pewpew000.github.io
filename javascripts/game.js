@@ -4,14 +4,14 @@
 
 // Global variables for settings
 var moveLimitBy = 300;
-var moveBy = 15;
+var moveBy = 30;
 
 var appleExpiryDuration = 3000; //for testing, it's very large
 
 var moveBombBy = 10;
 var bombDrawRate = 50; //1000;
 var bombInterval = null;
-var bombRange = 2;
+var bombRange = 1;
 
 var images = {};
 
@@ -26,14 +26,25 @@ var mainCharacter = "elephant";
 var latencyList = [];
 
 // Global variables for background calculation
-speculation_k1 = 3; // for key actions
-speculation_k2 = 3; // for move actions
-refresh_req = 100; // in terms of milliseconds
+speculation_k1 = 4; // for key actions
+speculation_k2 = 4; // for move actions
+//refresh_req = 100; // in terms of milliseconds
 
 // Global varaibles for different strategies
  var strategy = "linear"; // using linear consistency
 // var strategy = "spec_actions"; // using speculation on actions
 // var strategy = "hints"; // using hints
+var strategies = [];
+strategies[0] = "linear";
+strategies[1] = "spec_actions";
+strategies[2] = "hints";
+strategies[3] = "latehint";
+strategies[4] = "eventual";
+var round = 1;
+	
+// used to clean timeout violation
+var timeout_id;
+var roundfinished = true;
 
 
 var imageLoader = {
@@ -60,11 +71,6 @@ var imageLoader = {
 					playGame();
 				});
 				$('#tutorial').click(function(){
-					$('#tutorial').hide();
-                    $('#gametop').show();
-                    playGame();
-				});
-				$('#tutorial').keypress(function(){
 					$('#tutorial').hide();
                     $('#gametop').show();
                     playGame();
@@ -169,7 +175,7 @@ function GameUI (myCharacter) {
 	this.localbuffer = [];
 	this.pending_k1 = 0; // pending for firing
 	this.pending_k2 = 0; // pending for moving
-//	this.bufferNum = 0;
+	this.bufferNum = 0;
 
 	// === drawHearts === //
 	//   Draw the # of hears that the main character has
@@ -265,19 +271,59 @@ function GameUI (myCharacter) {
 
 	this.damageCharacter = function(key) {
 		(this.playerStates[key].heartsNum)--;
-		if(this.myCharacter == "elephant"){
+		if(this.myCharacter == mainCharacter){
 			this.drawHearts();
 			if(this.playerStates[key].heartsNum <= 0) {
 				//dead
 				settings.makeSound("dead");
 				this.clearCharacter(this.playerStates[key]);
-				if(key === "elephant") {
-					// TODO: indicate game over
-					// alert("Game Over!");
-				}
+				if(this.myCharacter == "elephant")
+				if(strategy == "linear" || strategy == "hints")
+					this.checkEnd();
+
 			} else {
 				settings.makeSound("hiccup");
 			}
+		}
+	};
+
+	// === checkEnd === //
+	// check if game ended.
+	// Only called by the mainPlayer
+	this.checkEnd = function(){
+		var dead = 0;
+		// mainPlayer died
+		if(this.playerStates["elephant"].heartsNum <= 0){
+			round++;
+			if(round==6){
+            	alert("All Finished, thanks!");
+             }
+             alert("Game Over! Round " + round);
+             strategy = strategies[round-1];
+			 cleanUp();
+			 roundfinished = true;
+             setTimeout(playGame(), 3000);
+		} else {
+			// all other player died
+			for(k in this.playerStates){
+            	if(!(k == "bird" || k == "cat" || k == "bee"))
+                	continue;
+                if(this.playerStates[k].heartsNum <= 0)
+                	dead += 1;
+            }
+
+			if(dead == 3){ // indicate game over
+                round++;
+                if(round==6){
+                	alert("All Finished, thanks!");
+                }
+                alert("You Won! Round " + round);
+//			    setTimeout( function(){mainPlayer.cleanUp();}, 0);
+                strategy = strategies[round-1];
+			 	cleanUp();
+				roundfinished = true;
+             	setTimeout(playGame(), 3000);
+            }
 		}
 	};
 
@@ -319,12 +365,12 @@ function GameUI (myCharacter) {
 				if (!(k === "elephant" || k === "bird" || k === "bee" || k === "cat")) {
 					continue;
 				}
-/*				var kcharacter = {
+				var kcharacter = {
 					x: this.playerStates[k].x,
 					y: this.playerStates[k].y,
 					image: images[k]
 				};
-*/				if (isOverlapping(newapple, this.playerStates[k])) {
+				if (isOverlapping(newapple, kcharacter)) { //this.playerStates[k])) {
 					invalidCoord = true;
 					break;
 				}
@@ -776,6 +822,103 @@ function GameUI (myCharacter) {
 		}
 	};
 
+	// === drawFire === //
+	// function only used by mainPlayer, to show him how he died.
+	// in such a case it will make the game seems to have more s
+	// -ense. // action has: player, funcNum, dir
+	this.drawFire = function(action){
+		settings.makeSound("shoot");
+
+		var bomb = {
+			x: 0,
+			y: 0,
+			dir: 0,
+			image: images["explosion"]
+		};
+
+		// set the bomb coord
+		if( action.fNum == 0 ){
+    		bomb.x = this.playerStates[action.player].x + 5;
+        	bomb.y = this.playerStates[action.player].y;
+            bomb.dir = action.dir;
+	
+    	    // set the coordinate accordingly
+        	if(action.dir === 40) { // DOWN
+            	bomb.y += (images[action.player].height+1);
+	        } else { // UP
+    	        bomb.y -= (images["explosion"].height+1);
+        	}
+
+		} else {
+        	bomb.x = this.playerStates[action.player].x;
+            bomb.y = this.playerStates[action.player].y + (Math.max(0, images[action.player].height - images["explosion"].height) / 2);
+            bomb.dir = action.dir;
+	
+    	    // set the coordinate accordingly
+	        if(action.dir === 39) { // DOWN
+    	        bomb.x += (images[action.player].width + 1);
+        	} else { // UP
+	            bomb.x -= (images["explosion"].width+1);
+    	    }
+
+		}
+
+		for(var i = 0; i < bombRange; i++){
+            // check all players to check if overlapped
+            // for the mainPlayer, draw the range
+            if(this.myCharacter == "elephant"){
+                context.drawImage(bomb.image, bomb.x, bomb.y);
+                //setTimeout(this.clearCharacter(bomb), 5000);
+                setTimeout( cleanFire(bomb.x, bomb.y, this), 500);
+
+                // check if the bomb is overlapping with any apple, if so, redraw apple
+                for (j=0; j < mainPlayer.yApples.length; j+=2) {
+                    var kapple = {
+                        x: mainPlayer.yApples[j],
+                        y: mainPlayer.yApples[j+1],
+                        image: images["yApple"]
+                    }
+                    if (isOverlapping(bomb, kapple)) {
+                        context.drawImage(images["yApple"], kapple.x, kapple.y);
+                    //  break;
+                    }
+                }
+               for (j=0; j < mainPlayer.gApples.length; j+=2) {
+                    var kapple = {
+                        x: mainPlayer.gApples[j],
+                        y: mainPlayer.gApples[j+1],
+                        image: images["gApple"]
+                      }
+                    if (isOverlapping(bomb, kapple)) {
+                        context.drawImage(images["gApple"], kapple.x, kapple.y);
+                    //break;
+                    }
+                }
+            }
+
+            // update bomb coord
+            switch(bomb.dir){
+                case 37: // LEFT
+                    bomb.x -= bomb.image.width;
+                break;
+                case 39: // RIGHT
+                    bomb.x += bomb.image.width;
+                break;
+                case 38: // UP
+                    bomb.y -= bomb.image.height;
+                break;
+                case 40: // DOWN
+                    bomb.y += bomb.image.height;
+                break;
+            }
+
+            // check if out of range
+            if(reachedEnd(bomb))
+                break;
+		}
+		
+	};
+
 	// synchronize world states to be the same as the other
 	this.synchStates = function(other){
 		// clean speculating datas
@@ -855,6 +998,7 @@ function GameUI (myCharacter) {
 	this.localbuff = function(funcNum, Character, direction){
 
 		if(this.myCharacter == "server"){ // for the server buffer
+			if(roundfinished) return;
 			// update the world state
 			switch(funcNum){
 				case 0:
@@ -871,10 +1015,10 @@ function GameUI (myCharacter) {
 			/* behave differently for different strategies */
 			if(strategy != "linear"){
 				// set timeout to send info to all ack world states
-				setTimeout( function(){ mainack.localbuff(funcNum, Character, direction); }, latencyList["server"].elephant );
-				setTimeout( function(){ birdack.localbuff(funcNum, Character, direction); }, latencyList["server"].bird );
-				setTimeout( function(){  catack.localbuff(funcNum, Character, direction); }, latencyList["server"].cat );
-				setTimeout( function(){  beeack.localbuff(funcNum, Character, direction); }, latencyList["server"].bee );
+				timeout_id = setTimeout( function(){ mainack.localbuff(funcNum, Character, direction); }, latencyList["server"].elephant );
+				timeout_id = setTimeout( function(){ birdack.localbuff(funcNum, Character, direction); }, latencyList["server"].bird );
+				timeout_id = setTimeout( function(){  catack.localbuff(funcNum, Character, direction); }, latencyList["server"].cat );
+				timeout_id = setTimeout( function(){  beeack.localbuff(funcNum, Character, direction); }, latencyList["server"].bee );
 			} else {
 				setTimeout( function(){ mainPlayer.runFunc(funcNum, Character, direction); }, latencyList["server"].elephant );
 				setTimeout( function(){ birdPlayer.runFunc(funcNum, Character, direction); }, latencyList["server"].bird );
@@ -883,12 +1027,14 @@ function GameUI (myCharacter) {
 			}
 
 		} else if(this.myCharacter == "elephantack" || this.myCharacter == "birdack" || this.myCharacter == "catack" || this.myCharacter == "beeack" ){
+			if(roundfinished) return;
 			/* behave differently for different strategies */
 			if(strategy == "linear") return;
 
   			/* for the ack world states */
 			// insert to local buffer immediately
 			this.localbuffer.push( {player: Character, fNum: funcNum, dir: direction} );
+			this.bufferNum++;
 
 			//update the world state
 			switch(funcNum){
@@ -908,19 +1054,19 @@ function GameUI (myCharacter) {
 						this.pending_k2++;
                 break;
             }
-
-			if(this.pending_k1 >= speculation_k1 || this.pending_k2 >= speculation_k2){
-		
-				if(this.myCharacter == "elephantack"){
-					console.log("catchyou");
-				}	
-
-				// synchronize 
+			if(strategy != "eventual"){
+				if(this.pending_k1 >= speculation_k1 || this.pending_k2 >= speculation_k2){
+					// synchronize 
+					if(roundfinished) return;
+					synchAck(this);
+				}
+			} else {
 				synchAck(this);
 			}
 		} else { /* for the prediction world states */
+			if(roundfinished) return;
 			/* differnt for different strategies */
-			if(strategy != "linear"){
+			if(strategy != "linear" && strategy != "eventual"){
 				// insert to local buffer immediately
 				this.localbuffer.push( {player: Character, fNum: funcNum, dir: direction} );
 
@@ -930,9 +1076,17 @@ function GameUI (myCharacter) {
 						if(Character == this.myCharacter) // adddddddddddddddddddddddddd
 							this.pending_k1 += 1;
 						if(funcNum == 0){
-							this.fireGreenBomb(Character, direction);
+							if(strategy == "latehint"){
+//								setTimeout();
+							} else {
+								this.fireGreenBomb(Character, direction);
+							}
 						} else {
-							this.fireYellowBomb(Character, direction);
+							if(strategy == "latehint"){
+								
+							} else {
+								this.fireYellowBomb(Character, direction);
+							}
 						}
 					} else {	// when firing speculation has come to limit
 						this.pending_k2 = speculation_k2;
@@ -942,7 +1096,11 @@ function GameUI (myCharacter) {
 //						this.bufferNum += 1;		// note down how many actions have been buffered
 						if(Character == this.myCharacter) // adddddddddddddddddd
 							this.pending_k2 += 1;
-						this.moveCharacter(Character, direction);
+						if(strategy == "latehint"){
+
+						} else {
+							this.moveCharacter(Character, direction);
+						}
 					} else {	// when moving speculation has come to limit
 						this.pending_k1 = speculation_k1;
 					}
@@ -962,7 +1120,20 @@ function GameUI (myCharacter) {
 					}
 					setTimeout( function(){ server.localbuff(funcNum, Character, direction); }, latencyList[Character].server);	// to the server
 				}
-			} else { // for linear consistency, just draw stuff when called localbuff.
+			} else if(strategy == "linear"){ // for linear consistency, just draw stuff when called localbuff.
+				setTimeout( function(){ server.localbuff(funcNum, Character, direction); }, latencyList[Character].server); // to the server
+			} else {
+				switch(funcNum){
+					case 0:
+						this.fireGreenBomb(Character, direction);
+					break;
+					case 1:
+						this.fireYellowBomb(Character, direction);
+					break;
+					case 2:
+						this.moveCharacter(Character, direction);
+					break;
+				}
 				setTimeout( function(){ server.localbuff(funcNum, Character, direction); }, latencyList[Character].server); // to the server
 			}
 		} 
@@ -1016,8 +1187,10 @@ function GameUI (myCharacter) {
 				this.AI_chase("elephant");
 			} else if(judge[0] == 1){ // can horizon kill
 				this.localbuff(0, this.myCharacter, judge[1]); //fireGreenBomb(this.myCharacter, judge[1]);
+	//			setTimeout(this.localbuff(0, this.myCharacter, judge[1]), 500); //fireGreenBomb(this.myCharacter, judge[1]);
 			} else { // can vertical kill
 				this.localbuff(1, this.myCharacter, judge[1]); //fireYellowBomb(this.myCharacter, judge[1]);
+//				setTimeout(this.localbuff(1, this.myCharacter, judge[1]), 500); //fireYellowBomb(this.myCharacter, judge[1]);
 			}
 
 		} else {			// if has no bullet, if has apples, chase; if no apples, avoid
@@ -1035,6 +1208,25 @@ function GameUI (myCharacter) {
 	this.AI_chase = function(chased){
 		var x_diff = this.playerStates[this.myCharacter].x - this.playerStates[chased].x;
 		var y_diff = this.playerStates[this.myCharacter].y - this.playerStates[chased].y;
+
+		if( Math.abs(x_diff) < images["explosion"].width ){
+			if(y_diff > 0){
+				this.localbuff(2, this.myCharacter, 38);
+			} else {
+				this.localbuff(2, this.myCharacter, 40);
+			}
+			return;
+		}
+
+		if( Math.abs(y_diff) < images["explosion"].height){
+			if(x_diff > 0){
+				this.localbuff(2, this.myCharacter, 37);
+			} else {
+				this.localbuff(2, this.myCharacter, 39);
+			}
+			return;
+		}
+
 		if( Math.abs(x_diff) >= Math.abs(y_diff) ){
 			switch(genRandom(0,2)){
 				case 0:
@@ -1149,7 +1341,7 @@ function GameUI (myCharacter) {
 		var res = [];
 		if( Math.abs(this.playerStates[killer].x - this.playerStates[victim].x) < images["explosion"].width ){
 //			res[0] = 1; // the 
-			if(Math.abs(this.playerStates[killer].y - this.playerStates[victim].y) <= images["explosion"].height * bombRange){
+			if(Math.abs(this.playerStates[killer].y - this.playerStates[victim].y) <= images["explosion"].height * bombRange + 10){
 				res[0] = 1;
 				if(this.playerStates[killer].y > this.playerStates[victim].y){
 					res[1] = 38; // fire up
@@ -1164,7 +1356,7 @@ function GameUI (myCharacter) {
 
 		if( Math.abs(this.playerStates[killer].y - this.playerStates[victim].y) < images["explosion"].height ){
 //			res[0] = 2;
-			if(Math.abs(this.playerStates[killer].x - this.playerStates[victim].x) <= images["explosion"].width * bombRange){
+			if(Math.abs(this.playerStates[killer].x - this.playerStates[victim].x) <= images["explosion"].width * bombRange + 10){
 				res[0] = 2;
 				if(this.playerStates[killer].x > this.playerStates[victim].x){
 					res[1] = 37;
@@ -1179,6 +1371,17 @@ function GameUI (myCharacter) {
 
 		return (res[0] = 0);
 	};
+
+	this.cleanUp = function(){
+		if(this.myCharacter == "elephant")
+			context.clearRect(0, 0, canvas.width, canvas.height);
+
+		this.localbuffer.splice(0, this.localbuffer.length);
+		this.pending_k1 = 0;
+		this.pending_k2 = 0;
+		while(this.timeOutid--)
+			window.clearTimeout(this.timeOutid);
+	}
 }
 
 // === clean fire == //
@@ -1193,6 +1396,8 @@ function cleanFire(x, y, world){
             y: y,
             image: images["explosion"]
         };
+
+		// handle overlapping with players
         for(k in world.playerStates){
             if(!(k == "elephant" || k == "bird" || k == "cat" || k == "bee"))
                 continue;
@@ -1211,6 +1416,30 @@ function cleanFire(x, y, world){
                 }
             }
         }
+
+		// handle overlapping with apples
+		for( i = 0; i < world.yApples.length; i+=2 ){
+			var Apple = {
+				x: world.yApples[i],
+				y: world.yApples[i+1],
+				image: images["yApple"]
+			};
+			
+			if(isOverlapping(bomb, Apple))
+				context.drawImage(images["yApple"], Apple.x, Apple.y);
+		}
+
+		for( i = 0; i < world.gApples.length; i+=2 ){
+			var Apple = {
+				x: world.gApples[i],
+				y: world.gApples[i+1],
+				image: images["gApple"]
+			};
+			
+			if(isOverlapping(bomb, Apple))
+				context.drawImage(images["gApple"], Apple.x, Apple.y);
+			
+		}
     };
 
 }
@@ -1322,6 +1551,8 @@ function initPositions(player) {
 }
 
 function playGame() {
+	
+	roundfinished = false;
 
 	/* setup all players skeleton */
 	mainPlayer = new GameUI("elephant");
@@ -1329,7 +1560,7 @@ function playGame() {
 	catPlayer  = new GameUI("cat");
 	beePlayer  = new GameUI("bee");
 	server     = new GameUI("server");
-	
+
 	/* setup all players' ack skeleton */
 	mainack = new GameUI("elephantack");
     birdack = new GameUI("birdack");
@@ -1385,13 +1616,13 @@ function playGame() {
 
 
 	// generate apples at the server every interval
-	//genApple();
+	genApple();
 	setInterval(genApple, 10000);
 
 	// start AIs
-//	setInterval(function(){ birdPlayer.AI_move(); }, genRandom(500, 1000));
-//	setInterval(function(){ catPlayer.AI_move(); }, genRandom(500, 1000));
-//	setInterval(function(){ beePlayer.AI_move(); }, genRandom(500, 1000));
+	setInterval(function(){ birdPlayer.AI_move(); }, genRandom(300, 500));
+	setInterval(function(){ catPlayer.AI_move(); }, genRandom(300, 500));
+	setInterval(function(){ beePlayer.AI_move(); }, genRandom(300, 500));
 
 	// refresh with interval
 /*	setInterval(function(){ synchAck(mainack);}, 100);
@@ -1402,7 +1633,7 @@ function playGame() {
 }
 
 function sendgApples(coord){
-	setTimeout( function(){ mainPlayer.drawGreenApple(coord); }, latencyList["server"].elephant);//latencyList["server"].elephant);
+	setTimeout( function(){ mainPlayer.drawGreenApple(coord); }, latencyList["server"].elephant);
     setTimeout( function(){ mainack.drawGreenApple(coord); }, latencyList["server"].elephant);
     setTimeout( function(){ birdPlayer.drawGreenApple(coord); }, latencyList["server"].bird);
     setTimeout( function(){ birdack.drawGreenApple(coord); }, latencyList["server"].bird);
@@ -1430,28 +1661,31 @@ function genApple(){
         var coord = server.getRandomAppleLocation();
         if(coord.length > 0) {
             server.drawGreenApple(coord);
+			sendgApples(coord);
         }
 
         coord = server.getRandomAppleLocation();
         if(coord.length > 0) {
             server.drawYellowApple(coord);
+			sendyApples(coord)
         }
     }
 	
 	// insert these apples into other player's ack world
-	for(i= 0; i < server.gApples.length; i += 2){
+/*	for(i= 0; i < server.gApples.length; i += 2){
 		var coord = [];
 		coord[0] = server.gApples[i];
 		coord[1] = server.gApples[i+1];
 		sendgApples(coord);
 	}
 
-	for(i= 0; i < server.yApples.length; i++){
+	for(i= 0; i < server.yApples.length; i += 2){
 		var coord = [];
 		coord[0] = server.yApples[i];
 		coord[1] = server.gApples[i+1];
 		sendyApples(coord)
 	}
+*/
 }
 
 var startscreen = {
@@ -1557,11 +1791,30 @@ function synchAck(world){
 // synchronize world states: ack and prediction
 function synchronize(ackworld, predworld){
 	// delete acked events in predworld local buffer
-	for(var i = 0; i < ackworld.localbuffer.length; i++)
-		predworld.findclearbuff(ackworld.localbuffer[i]);
+	if(strategy == "spec_actions"){ // for the simple speculation strategy
+		if(predworld.myCharacter == "elephant"){ // for the local player, need to draw the fire afterwards
+			for(var i = 0; i < ackworld.localbuffer.length; i++){
+				predworld.findclearbuff(ackworld.localbuffer[i]);
+				// for all cases that the enemy has fired, need to locally draw the fireRange
+				if(ackworld.localbuffer[i].player != "elephant" && ackworld.localbuffer[i].fNum != 2){
+					mainPlayer.drawFire(ackworld.localbuffer[i]);
+				}
+			}
+			predworld.checkEnd();
+		} else {
+			for(var i = 0; i < ackworld.localbuffer.length; i++){
+				predworld.findclearbuff(ackworld.localbuffer[i]);
+			}
+		}
+	} else { // for the hints strategy
+		for(var i = 0; i < ackworld.localbuffer.length; i++){
+			predworld.findclearbuff(ackworld.localbuffer[i]);
+		}
+	}
 
 	// clean ackworld's local buffer
-	ackworld.localbuffer.splice(0, ackworld.localbuffer.length);
+	ackworld.localbuffer.splice(0, ackworld.bufferNum); //ackworld.localbuffer.length);
+	ackworld.bufferNum = 0;
 
 	// synchronize the position & apple || now not synchronizing bombList
 	predworld.synchStates(ackworld);
@@ -1577,3 +1830,17 @@ function genRandom(a, b){
     return (Math.floor(Math.random() * (b - a + 1)) + a);
 }
 
+function cleanUp(){
+	mainPlayer.cleanUp();
+	birdPlayer.cleanUp();
+	beePlayer.cleanUp();
+	catPlayer.cleanUp();
+	
+	mainack.cleanUp();
+	birdack.cleanUp();
+	beeack.cleanUp();
+	catack.cleanUp();
+
+	while(timeout_id--)
+		window.clearTimeout(timeout_id);
+}
