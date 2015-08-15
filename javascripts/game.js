@@ -20,31 +20,33 @@ var birdPlayer;
 var catPlayer;
 var beePlayer;
 var server; 
+
+// the timer
+var myTimer;
  
 var mainCharacter = "elephant";
 
 var latencyList = [];
 
 // Global variables for background calculation
-speculation_k1 = 4; // for key actions
-speculation_k2 = 4; // for move actions
+speculation_k1 = 3; // for key actions
+speculation_k2 = 3; // for move actions
 //refresh_req = 100; // in terms of milliseconds
 
 // Global varaibles for different strategies
- var strategy = "linear"; // using linear consistency
-// var strategy = "spec_actions"; // using speculation on actions
-// var strategy = "hints"; // using hints
 var strategies = [];
 strategies[0] = "linear";
 strategies[1] = "spec_actions";
 strategies[2] = "hints";
-strategies[3] = "latehint";
+strategies[3] = "latehints";
 strategies[4] = "eventual";
+
+var strategy = strategies[1]; // using hints
+
 var round = 1;
 	
 // used to clean timeout violation
 var timeout_id;
-var roundfinished = true;
 
 
 var imageLoader = {
@@ -278,7 +280,7 @@ function GameUI (myCharacter) {
 				settings.makeSound("dead");
 				this.clearCharacter(this.playerStates[key]);
 				if(this.myCharacter == "elephant")
-				if(strategy == "linear" || strategy == "hints")
+				if(strategy == "linear" || strategy == "hints" || strategy == "latehints")
 					this.checkEnd();
 
 			} else {
@@ -301,8 +303,7 @@ function GameUI (myCharacter) {
              alert("Game Over! Round " + round);
              strategy = strategies[round-1];
 			 cleanUp();
-			 roundfinished = true;
-             setTimeout(playGame(), 3000);
+             setTimeout(playGame(), 8000);
 		} else {
 			// all other player died
 			for(k in this.playerStates){
@@ -321,8 +322,7 @@ function GameUI (myCharacter) {
 //			    setTimeout( function(){mainPlayer.cleanUp();}, 0);
                 strategy = strategies[round-1];
 			 	cleanUp();
-				roundfinished = true;
-             	setTimeout(playGame(), 3000);
+             	setTimeout(playGame(), 8000);
             }
 		}
 	};
@@ -666,39 +666,6 @@ function GameUI (myCharacter) {
 		}
 	};
 
-	// === cleanFire === //
-/*	this.cleanFire = function(x, y){
-    	return function(){
-
-       		context.clearRect(x, y,
-            	              images["explosion"].width,
-                	          images["explosion"].height);
-			var bomb = {
-				x: x,
-				y: y,
-				image: images["explosion"]
-			};
-			for(k in this.playerStates){
-				if(!(k == "elephant" || k == "bird" || k == "cat" || k == "bee"))
-					continue;
-
-				var kCharacter = {
-					x: this.playerStates[k].x,
-					y: this.playerStates[k].y,
-					image: images[k]
-				};
-
-				if(isOverlapping(kCharacter, bomb)){
-					if(this.playerStates[k].heartsNum > 0){
-						this.drawCharacter(k);
-					} else {
-						this.cleanCharacter(this.playerStates[k]);
-					}
-				}
-			}
-		};
-	};
-*/
 	// === canMove === //
 	//   Returns true or false whether the character of the given key can move into the given coordinates, x and y.
 	//   If there's an apple in the way, eat the apple
@@ -948,7 +915,6 @@ function GameUI (myCharacter) {
 				this.gApples.splice(i-1, 2);
 				this.clearCharacter(coord);
 			}
-
 		}
 
 		// playerStates
@@ -967,6 +933,12 @@ function GameUI (myCharacter) {
 				this.clearCharacter(img);
 				changed[0] = true;
 			}
+
+			if(other.playerStates[k].heartsNum <= 0 && this.playerStates[k].heartsNum > 0){
+                this.clearCharacter(img);
+                changed[0] = false;
+            }
+
 
 			if(this.playerStates[k].yBulletsNum != other.playerStates[k].yBulletsNum || this.playerStates[k].gBulletsNum != other.playerStates[k].gBulletsNum )
 				changed[1] = true;
@@ -998,7 +970,6 @@ function GameUI (myCharacter) {
 	this.localbuff = function(funcNum, Character, direction){
 
 		if(this.myCharacter == "server"){ // for the server buffer
-			if(roundfinished) return;
 			// update the world state
 			switch(funcNum){
 				case 0:
@@ -1027,7 +998,6 @@ function GameUI (myCharacter) {
 			}
 
 		} else if(this.myCharacter == "elephantack" || this.myCharacter == "birdack" || this.myCharacter == "catack" || this.myCharacter == "beeack" ){
-			if(roundfinished) return;
 			/* behave differently for different strategies */
 			if(strategy == "linear") return;
 
@@ -1057,14 +1027,12 @@ function GameUI (myCharacter) {
 			if(strategy != "eventual"){
 				if(this.pending_k1 >= speculation_k1 || this.pending_k2 >= speculation_k2){
 					// synchronize 
-					if(roundfinished) return;
 					synchAck(this);
 				}
 			} else {
 				synchAck(this);
 			}
 		} else { /* for the prediction world states */
-			if(roundfinished) return;
 			/* differnt for different strategies */
 			if(strategy != "linear" && strategy != "eventual"){
 				// insert to local buffer immediately
@@ -1076,14 +1044,14 @@ function GameUI (myCharacter) {
 						if(Character == this.myCharacter) // adddddddddddddddddddddddddd
 							this.pending_k1 += 1;
 						if(funcNum == 0){
-							if(strategy == "latehint"){
-//								setTimeout();
+							if(strategy == "latehints"){
+								lateExecute(funcNum, Character, direction, this);
 							} else {
 								this.fireGreenBomb(Character, direction);
 							}
 						} else {
-							if(strategy == "latehint"){
-								
+							if(strategy == "latehints"){
+								lateExecute(funcNum, Character, direction, this);
 							} else {
 								this.fireYellowBomb(Character, direction);
 							}
@@ -1096,8 +1064,8 @@ function GameUI (myCharacter) {
 //						this.bufferNum += 1;		// note down how many actions have been buffered
 						if(Character == this.myCharacter) // adddddddddddddddddd
 							this.pending_k2 += 1;
-						if(strategy == "latehint"){
-
+						if(strategy == "latehints"){
+							lateExecute(funcNum, Character, direction, this);
 						} else {
 							this.moveCharacter(Character, direction);
 						}
@@ -1108,7 +1076,7 @@ function GameUI (myCharacter) {
 
 				// if is self action, set timeout and insert it to otherplayer's buffer
 				if(Character === this.myCharacter){
-					if(strategy == "hints"){
+					if(strategy == "hints" || strategy == "latehints"){
 						if(Character != "elephant")
 							setTimeout( function(){ mainPlayer.localbuff(funcNum, Character, direction); }, latencyList[Character].elephant);	// to all other players
 						if(Character != "bird")
@@ -1384,6 +1352,37 @@ function GameUI (myCharacter) {
 	}
 }
 
+// ===late execute=== //
+function lateExecute(funcNum, player, dir, world){
+	var local = world.myCharacter;
+	if(player == world.myCharacter){
+		switch(funcNum){
+			case 0:
+				setTimeout( function(){ world.fireGreenBomb(player, dir); }, latencyList[player].server - latencyList[player].local );
+			break;
+			case 1:
+				setTimeout( function(){ world.fireYellowBomb(player, dir); }, latencyList[player].server - latencyList[player].local );
+			break;
+			case 2:
+				setTimeout( function(){ world.moveCharacter(player, dir); }, latencyList[player].server - latencyList[player].local );
+			break;
+		}
+	} else {
+		switch(funcNum){
+			case 0:
+				setTimeout( function(){ world.fireGreenBomb(player, dir); }, latencyList[player].server );
+			break;
+			case 1:
+				setTimeout( function(){ world.fireYellowBomb(player, dir); }, latencyList[player].server );
+			break;
+			case 2:
+				setTimeout( function(){ world.moveCharacter(player, dir); }, latencyList[player].server );
+			break;
+		}
+
+	}
+}
+
 // === clean fire == //
 function cleanFire(x, y, world){
     return function(){
@@ -1552,10 +1551,9 @@ function initPositions(player) {
 
 function playGame() {
 	
-	roundfinished = false;
-
 	/* setup all players skeleton */
 	mainPlayer = new GameUI("elephant");
+	context.clearRect(0, 0, canvas.width, canvas.height);
     birdPlayer = new GameUI("bird");
 	catPlayer  = new GameUI("cat");
 	beePlayer  = new GameUI("bee");
@@ -1630,6 +1628,37 @@ function playGame() {
 	setInterval(function(){ synchAck(catack);}, 100);
 	setInterval(function(){ synchAck(beeack);}, 100);
 */
+
+	// start the timer
+	startTimer();
+}
+
+function startTimer(){
+	myTimer = 60;
+
+	setInterval(timer, 1000);
+}
+
+function timer(){
+	myTimer -= 1;
+
+	if(myTimer <= -1){
+//		alert("Finished");
+		round++;
+        if(round==6){
+        	alert("All Finished, thanks!");
+        }
+        alert("Time Up! Round " + round);
+        strategy = strategies[round-1];
+        cleanUp();
+        setTimeout(playGame(), 8000);
+	} // one round ended
+
+	if(myTimer >= 10){
+		document.getElementById("myTimer").innerHTML = "00:" + myTimer;
+	} else {
+		document.getElementById("myTimer").innerHTML = "00:0" + myTimer;
+	}
 }
 
 function sendgApples(coord){
@@ -1770,7 +1799,7 @@ function initgame(){
 // synchronize world states: ack and prediction
 function synchAck(world){
 
-	if(world.pending_k1 == 0 && world.pending_k2 == 0) 
+	if(world.pending_k1 == 0 && world.pending_k2 == 0 || mainPlayer == null || mainack == null) 
 		return;
 
  	// synchronize with prediction copy
@@ -1795,6 +1824,7 @@ function synchronize(ackworld, predworld){
 		if(predworld.myCharacter == "elephant"){ // for the local player, need to draw the fire afterwards
 			for(var i = 0; i < ackworld.localbuffer.length; i++){
 				predworld.findclearbuff(ackworld.localbuffer[i]);
+
 				// for all cases that the enemy has fired, need to locally draw the fireRange
 				if(ackworld.localbuffer[i].player != "elephant" && ackworld.localbuffer[i].fNum != 2){
 					mainPlayer.drawFire(ackworld.localbuffer[i]);
@@ -1840,6 +1870,16 @@ function cleanUp(){
 	birdack.cleanUp();
 	beeack.cleanUp();
 	catack.cleanUp();
+
+	mainPlayer = null;
+	birdPlayer = null;
+	beePlayer = null;
+	catPlayer = null;
+
+	mainack = null;
+	birdack = null;
+	beeack = null;
+	catack = null;
 
 	while(timeout_id--)
 		window.clearTimeout(timeout_id);
