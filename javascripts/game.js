@@ -21,6 +21,9 @@ var catPlayer;
 var beePlayer;
 var server; 
 
+// the local time
+//var localTime = new Date();
+
 // the timer
 var myTimer;
  
@@ -52,8 +55,26 @@ var timeout_id;
 var latency = [];
 var rollback = [];
 var playtime = [];
+var inputNum =[];
+
 //var action_num;
 var file_data;
+
+/* seeded random method so that game can be replayed */
+// the initial seed
+Math.seed = 6;
+ 
+// in order to work 'Math.seed' must NOT be undefined,
+// so in any case, you HAVE to provide a Math.seed
+Math.seededRandom = function(min, max) {
+    max = max || 1;
+    min = min || 0;
+ 
+    Math.seed = (Math.seed * 9301 + 49297) % 233280;
+    var rnd = Math.seed / 233280;
+ 
+    return min + rnd * (max - min);
+}
 
 
 var imageLoader = {
@@ -309,7 +330,7 @@ function GameUI (myCharacter) {
 				playtime[round-1] = 60 - myTimer; // collect the playtime information 
 			}
 			round++;
-			if(round==6){
+			if(round==2){
             	alert("All Finished, thanks!");
 				parseData();
 				download("result.log", fileData);
@@ -335,7 +356,7 @@ function GameUI (myCharacter) {
 					playtime[round-1] = 60 - myTimer; // collect the playtime information
 				} 
                 round++;
-                if(round==6){
+                if(round==2){
                 	alert("All Finished, thanks!");
 //					var blob = new Blob(["Hello, world!"], {type: "text/plain;charset=utf-8"});
 //					saveAs(blob, "result.txt");
@@ -378,8 +399,10 @@ function GameUI (myCharacter) {
 				coord = [];
 				break;
 			}
-			coord[0] = Math.max(0, Math.floor(Math.random() * canvaswidth) - images["yApple"].width);
-			coord[1] = Math.max(0, Math.floor(Math.random() * canvasheight) - images["yApple"].height);
+			var test1 = Math.seededRandom(0,1);
+			var test2 = Math.seededRandom(0,1);
+			coord[0] = Math.max(0, Math.floor(Math.seededRandom(0,1) * canvaswidth) - images["yApple"].width);
+			coord[1] = Math.max(0, Math.floor(Math.seededRandom(0,1) * canvasheight) - images["yApple"].height);
 			var newapple = {
 				x: coord[0],
 				y: coord[1],
@@ -958,11 +981,15 @@ function GameUI (myCharacter) {
 			if(img.x != other.playerStates[k].x || img.y != other.playerStates[k].y){
 				this.clearCharacter(img);
 				changed[0] = true;
+			}
+
+			if(Math.abs(img.x - other.playerStates[k].x) > 30 || Math.abs(img.y - other.playerStates[k].y) > 30){
 				if(this.myCharacter == "elephant" && checked == false ){ // collect rollback data
 					rollback[round-1] += 1;
 					checked = true;
 				}
 			}
+			
 
 			if(other.playerStates[k].heartsNum <= 0 && this.playerStates[k].heartsNum > 0){
                 this.clearCharacter(img);
@@ -999,6 +1026,10 @@ function GameUI (myCharacter) {
 	this.findclearbuff = function(item){ // delete events acknowledged by the server
 		for(var i = 0; i < this.localbuffer.length; i++){
 			if(this.localbuffer[i].player == item.player && this.localbuffer[i].fNum == item.fNum && this.localbuffer[i].dir == item.dir){
+				if(this.localbuffer[i].blocked == true && this.myCharacter == mainCharacter && item.player == mainCharacter){ // calculate only mainPlayer's self actions
+					var temp = Date.now();
+					latency[round-1] += (temp - this.localbuffer[i].time);
+				}
 				this.localbuffer.splice(i, 1);
 			}
 		}
@@ -1021,16 +1052,18 @@ function GameUI (myCharacter) {
 			}
 
 			/* behave differently for different strategies */
-			var temp = latencyList["server"].elephant + genRandom(-10, 10);
 			if(strategy != "linear"){
 				// set timeout to send info to all ack world states
-				timeout_id = setTimeout( function(){ mainack.localbuff(funcNum, Character, direction); }, temp );
+				timeout_id = setTimeout( function(){ mainack.localbuff(funcNum, Character, direction); }, latencyList["server"].elephant + genRandom(-10, 10));
 				timeout_id = setTimeout( function(){ birdack.localbuff(funcNum, Character, direction); }, latencyList["server"].bird + genRandom(-10, 10));
 				timeout_id = setTimeout( function(){  catack.localbuff(funcNum, Character, direction); }, latencyList["server"].cat + genRandom(-10, 10));
 				timeout_id = setTimeout( function(){  beeack.localbuff(funcNum, Character, direction); }, latencyList["server"].bee + genRandom(-10, 10));
 			} else {
-				latency[round-1] += temp;
-				setTimeout( function(){ mainPlayer.runFunc(funcNum, Character, direction); }, temp );
+				var temp = latencyList["server"].elephant + genRandom(-10, 10);
+				if(Character == mainCharacter)
+					latency[round-1] += temp;
+
+				setTimeout( function(){ mainPlayer.runFunc(funcNum, Character, direction); }, temp);
 				setTimeout( function(){ birdPlayer.runFunc(funcNum, Character, direction); }, latencyList["server"].bird + genRandom(-10, 10));
 				setTimeout( function(){  catPlayer.runFunc(funcNum, Character, direction); }, latencyList["server"].cat + genRandom(-10, 10));
 				setTimeout( function(){  beePlayer.runFunc(funcNum, Character, direction); }, latencyList["server"].bee + genRandom(-10, 10));
@@ -1075,7 +1108,8 @@ function GameUI (myCharacter) {
 			/* differnt for different strategies */
 			if(strategy != "linear" && strategy != "eventual"){
 				// insert to local buffer immediately
-				this.localbuffer.push( {player: Character, fNum: funcNum, dir: direction} );
+				var myTemp = Date.now();//localTime.getTime();
+				this.localbuffer.push( {player: Character, fNum: funcNum, dir: direction, time: myTemp, blocked: false} );
 
 				// update the number of actions in the buffer now
 				if(funcNum != 2){ // firing situation
@@ -1097,6 +1131,8 @@ function GameUI (myCharacter) {
 						}
 					} else {	// when firing speculation has come to limit
 						this.pending_k2 = speculation_k2;
+						if(this.myCharacter == mainCharacter && Character == mainCharacter) // Note down if has been blocked thus knowing how to calculate latency 
+							this.localbuffer[this.localbuffer.length-1].blocked = true;
 					}
 				} else {	// moving situation
 					if(this.pending_k2 < speculation_k2){
@@ -1110,6 +1146,8 @@ function GameUI (myCharacter) {
 						}
 					} else {	// when moving speculation has come to limit
 						this.pending_k1 = speculation_k1;
+						if(this.myCharacter == mainCharacter && Character == mainCharacter) // Note down if has been blocked thus knowing how to calculate latency 
+							this.localbuffer[this.localbuffer.length-1].blocked = true;
 					}
 				}
 
@@ -1128,8 +1166,13 @@ function GameUI (myCharacter) {
 					setTimeout( function(){ server.localbuff(funcNum, Character, direction); }, latencyList[Character].server + genRandom(-10, 10));	// to the server
 				}
 			} else if(strategy == "linear"){ // for linear consistency, just draw stuff when called localbuff.
-				setTimeout( function(){ server.localbuff(funcNum, Character, direction); }, latencyList[Character].server + genRandom(-10, 10)); // to the server
-			} else {
+				var latencyTemp = latencyList[Character].server + genRandom(-10, 10);
+
+				if(Character == mainCharacter && this.myCharacter == mainCharacter) // collect the latency information
+					latency[round-1] += latencyTemp;
+
+				setTimeout( function(){ server.localbuff(funcNum, Character, direction); }, latencyTemp); // to the server
+			} else { // for the eventual consistency
 				switch(funcNum){
 					case 0:
 						this.fireGreenBomb(Character, direction);
@@ -1164,6 +1207,11 @@ function GameUI (myCharacter) {
 	this.run = function(){ // running until pending_k big enough
 		var i = 0;
 		while( i < this.localbuffer.length && this.pending_k1 < speculation_k1 && this.pending_k2 < speculation_k2 ){
+			if(this.myCharacter == mainCharacter && this.localbuffer[i].blocked == true && this.localbuffer[i].player == mainCharacter){
+				latency[round-1] += (Date.now() - this.localbuffer[i].time); // collect the latency
+				this.localbuffer[i].time = Date.now();//localTime.getTime(); // update the new block time
+			}
+
 			switch(this.localbuffer[i].fNum){
 			case 0:
 				this.fireGreenBomb(this.localbuffer[i].player, this.localbuffer[i].direction);
@@ -1211,12 +1259,88 @@ function GameUI (myCharacter) {
 		}
 	};
 
+	// for the main actor
+	this.MAI_move = function(){
+		if(this.playerStates[this.myCharacter].heartsNum <= 0 ) return;
+		if(this.playerStates[this.myCharacter].gBulletsNum > 0 || this.playerStates[this.myCharacter].yBulletsNum > 0){		// if has bullet, kill others
+			var judge;
+			var victim;
+			for(k in this.playerStates){
+				if(k != "elephant" && k != "yApple" && k != "gApple"){
+					judge = this.cankill(this.myCharacter, k );
+					if(judge != 0){
+						victim = k;
+						break;
+					}
+				}
+			}
+
+			// if can't kill
+			if(judge == 0){ // can't kill, stay away from mainPlayer
+				victim = this.getClosest(); // get the closest victim
+				this.AI_chase(victim);
+			} else if(judge[0] == 1){ // can horizon kill
+				this.localbuff(0, this.myCharacter, judge[1]); //fireGreenBomb(this.myCharacter, judge[1]);
+	//			setTimeout(this.localbuff(0, this.myCharacter, judge[1]), 500); //fireGreenBomb(this.myCharacter, judge[1]);
+			} else { // can vertical kill
+				this.localbuff(1, this.myCharacter, judge[1]); //fireYellowBomb(this.myCharacter, judge[1]);
+//				setTimeout(this.localbuff(1, this.myCharacter, judge[1]), 500); //fireYellowBomb(this.myCharacter, judge[1]);
+			}
+
+		} else {			// if has no bullet, if has apples, chase; if no apples, avoid
+			// if there are apples now, chase the apple
+			if(this.yApples.length > 0 || this.gApples.length > 0){
+				this.AI_chaseApple();
+			} else {
+				// if there are no apple now
+				victim = this.getClosest();
+				this.AI_runAway(victim);
+			}
+		}
+	};
+
+	// return the closest enemy
+	this.getClosest = function(){
+		var victim;
+		var dist = 999999;
+
+		for(k in this.playerStates){
+			if(k == this.myCharacter)
+				continue;
+			if(dist > Math.abs(this.playerStates[this.myCharacter].x - this.playerStates[k].x)){
+				victim = k;
+				dist = Math.abs(this.playerStates[this.myCharacter].x - this.playerStates[k].x);
+			}
+			if(dist > Math.abs(this.playerStates[this.myCharacter].y - this.playerStates[k].y)){
+				victim = k;
+				dist = Math.abs(this.playerStates[this.myCharacter].y - this.playerStates[k].y);
+			}
+		}
+
+		return victim;
+	};
+
 	// chase player: chased
 	this.AI_chase = function(chased){
 		var x_diff = this.playerStates[this.myCharacter].x - this.playerStates[chased].x;
 		var y_diff = this.playerStates[this.myCharacter].y - this.playerStates[chased].y;
+		var x_bomb_diff; // the deviation of how much further can be bombed
+		var y_bomb_diff; // the deviation of how much further can be bombed
 
-		if( Math.abs(x_diff) < images["explosion"].width ){
+		if(x_diff > 0){
+			x_bomb_diff = this.playerStates[this.myCharacter].x - this.playerStates[chased].x - images["explosion"].width - images[chased].width;
+		} else {
+			x_bomb_diff = this.playerStates[chased].x - this.playerStates[this.myCharacter].x - images["explosion"].width - images[this.myCharacter].width;
+		}
+
+		if(y_diff > 0){
+			y_bomb_diff = this.playerStates[this.myCharacter].y - this.playerStates[chased].y - images["explosion"].height - images[chased].height;
+		} else {
+			y_bomb_diff = this.playerStates[chased].y - this.playerStates[this.myCharacter].y - images["explosion"].height - images[this.myCharacter].height;
+		}
+
+		// see if can vertically kill
+/*		if( Math.abs(x_diff) < images["explosion"].width && this.playerStates[this.myCharacter].gBulletsNum > 0){
 			if(y_diff > 0){
 				this.localbuff(2, this.myCharacter, 38);
 			} else {
@@ -1224,8 +1348,85 @@ function GameUI (myCharacter) {
 			}
 			return;
 		}
+*/
 
-		if( Math.abs(y_diff) < images["explosion"].height){
+		// handle can't move situation first
+		
+
+		// the x direction situation
+		switch(genRandom(0,5)){
+			case 0: // the movement situation(chase)
+				if(x_bomb_diff > y_bomb_diff){
+					switch(genRandom(0,3)){
+						case 0: // move y direction with smaller possibility
+							if(y_diff > 0){
+								if(genRandom(0,3) == 0){
+									this.localbuff(2, this.myCharacter, 40);
+								} else {
+									this.localbuff(2, this.myCharacter, 38);
+								}
+							} else {
+								if(genRandom(0,3) == 0){
+									this.localbuff(2, this.myCharacter, 38);
+								} else {
+									this.localbuff(2, this.myCharacter, 40);
+								}
+							}
+						break;
+						default: // move x_direction
+							if(x_diff > 0){
+								this.localbuff(2, this,myCharacter, 37);
+							} else {
+								this.localbuff(2, this,myCharacter, 39);
+							}
+						break;
+					}
+				} else {	// move x direction with smaller possibility
+					switch(genRandom(0,3)){
+                        case 0: // move x direction
+                            if(x_diff > 0){
+                                if(genRandom(0,3) == 0){
+                                    this.localbuff(2, this.myCharacter, 39);
+                                } else {
+                                    this.localbuff(2, this.myCharacter, 37);
+                                }
+                            } else {
+                                if(genRandom(0,3) == 0){
+                                    this.localbuff(2, this.myCharacter, 37);
+                                } else {
+                                    this.localbuff(2, this.myCharacter, 39);
+                                }
+                            }
+                        break;
+                        default: // move y_direction
+                            if(y_diff > 0){
+                                this.localbuff(2, this,myCharacter, 38);
+                            } else {
+                                this.localbuff(2, this,myCharacter, 40);
+                            }
+                        break;
+                    } 
+				}
+			break;
+			default: // directly chase the victim
+				if(x_diff > y_diff){
+					if(x_diff > 0){
+						this.localbuff(2, this.myCharacter, 37);
+					} else {
+						this.localbuff(2, this.myCharacter, 39);
+					}
+				} else {
+					if(y_diff > 0){
+						this.localbuff(2, this.myCharacter, 38);
+					} else {
+						this.localbuff(2, this.myCharacter, 40);
+					}
+				}
+			break;
+		}
+
+		// see if can horizontally kill
+/*		if( Math.abs(y_diff) < images["explosion"].height && this.playerStates[this.myCharacter].yBulletsNum > 0){
 			if(x_diff > 0){
 				this.localbuff(2, this.myCharacter, 37);
 			} else {
@@ -1269,7 +1470,7 @@ function GameUI (myCharacter) {
 				break;
 			}
 		}
-	};
+*/	};
 
 	// run away from player
 	this.AI_runAway = function(player){
@@ -1346,32 +1547,38 @@ function GameUI (myCharacter) {
 	// judge if can kill. if can kill then how to kill, if can't return 0
 	this.cankill = function(killer, victim){
 		var res = [];
-		if( Math.abs(this.playerStates[killer].x - this.playerStates[victim].x) < images["explosion"].width ){
-//			res[0] = 1; // the 
-			if(Math.abs(this.playerStates[killer].y - this.playerStates[victim].y) <= images["explosion"].height * bombRange + 10){
-				res[0] = 1;
-				if(this.playerStates[killer].y > this.playerStates[victim].y){
-					res[1] = 38; // fire up
-				} else {
-					res[1] = 40; // fire down
+		// can vertically kill
+		res[0] = 0;
+		// can vertically kill
+		if( Math.abs(this.playerStates[killer].x - this.playerStates[victim].x) < images["explosion"].width && this.playerStates[killer].gBulletsNum > 0){
+			// can up kill
+			if(this.playerStates[killer].y > this.playerStates[victim].y){
+				if(this.playerStates[victim].y + images[victim].height + images["explosion"].height > this.playerStates[killer].y){
+					res[0] = 1;
+					res[1] = 38;
 				}
-			} else {
-				return (res[0] = 0); // fire down
+			} else { // can down kill
+				if(this.playerStates[killer].y + images[killer].height + images["explosion"].height > this.playerStates[victim].y){
+					res[0] = 1;
+					res[1] = 40;
+				}
 			}
 			return res;
 		}
 
-		if( Math.abs(this.playerStates[killer].y - this.playerStates[victim].y) < images["explosion"].height ){
-//			res[0] = 2;
-			if(Math.abs(this.playerStates[killer].x - this.playerStates[victim].x) <= images["explosion"].width * bombRange + 10){
-				res[0] = 2;
-				if(this.playerStates[killer].x > this.playerStates[victim].x){
+		// can horizontally kill
+		if( Math.abs(this.playerStates[killer].y - this.playerStates[victim].y) < images["explosion"].height && this.playerStates[killer].yBulletsNum > 0){
+			// can left kill
+			if(this.playerStates[killer].x > this.playerStates[victim].x){
+				if(this.playerStates[victim].x + images[victim].width + images["explosion"].width > this.playerStates[killer].x){
+					res[0] = 2;
 					res[1] = 37;
-				} else {
+				}
+			} else { // can right kill
+				if(this.playerStates[killer].x + images[killer].width + images["explosion"].width > this.playerStates[victim].x){
+					res[0] = 2;
 					res[1] = 39;
 				}
-			} else {
-				return (res[0] = 0);
 			}
 			return res;
 		}
@@ -1394,7 +1601,12 @@ function GameUI (myCharacter) {
 // ===late execute=== //
 function lateExecute(funcNum, player, dir, world){
 	var local = world.myCharacter;
-	if(player == world.myCharacter){
+	/* the situation for the mainPlayer's self actions */
+	if(local == mainCharacter && player == mainCharacter){
+		latency[round-1] += latencyList[player].server; 
+	}
+
+	if(player != world.myCharacter){
 		switch(funcNum){
 			case 0:
 				setTimeout( function(){ world.fireGreenBomb(player, dir); }, latencyList[player].server - latencyList[player].local );
@@ -1541,18 +1753,23 @@ var keyHandler = {
 			    case 40: //down
 			    case 37: //left
 					mainPlayer.localbuff(2, mainCharacter, e.which);
+					inputNum[round-1] += 1;
 			    break;
 			    case 87: // W -> G
 					mainPlayer.localbuff(0, mainCharacter, 38);
+					inputNum[round-1] += 1;
 			    break;
 			    case 83: // S -> G
 					mainPlayer.localbuff(0, mainCharacter, 40);
+					inputNum[round-1] += 1;
 			    break;
 			    case 65: // A -> Y
 					mainPlayer.localbuff(1, mainCharacter, 37);
+					inputNum[round-1] += 1;
 			    break;
 			    case 68: // D -> Y
 					mainPlayer.localbuff(1, mainCharacter, 39);
+					inputNum[round-1] += 1;
 			    break;
 			    default:
 			    break;
@@ -1650,6 +1867,8 @@ function playGame() {
 
 	// initialize data collection
 	rollback[round-1] = 0;
+	inputNum[round-1] = 0;
+	latency[round-1] = 0;
 
 	// === Real game logic starts === //
 	keyHandler.init();
@@ -1662,6 +1881,7 @@ function playGame() {
 	setInterval(function(){ birdPlayer.AI_move(); }, genRandom(300, 500));
 	setInterval(function(){ catPlayer.AI_move(); }, genRandom(300, 500));
 	setInterval(function(){ beePlayer.AI_move(); }, genRandom(300, 500));
+	setInterval(function(){ mainPlayer.MAI_move(); }, genRandom(200, 300));
 
 	// refresh with interval
 /*	setInterval(function(){ synchAck(mainack);}, 100);
@@ -1686,7 +1906,7 @@ function timer(){
 	if(myTimer <= -1){
 //		alert("Finished");
 		round++;
-        if(round==6){
+        if(round==2){
         	alert("All Finished, thanks!");
 			parseData();
 			download("result.log", fileData); //+ death_time);
@@ -1901,7 +2121,8 @@ function synchronize(ackworld, predworld){
 
 // return random number in range: [a, b]
 function genRandom(a, b){
-    return (Math.floor(Math.random() * (b - a + 1)) + a);
+//    return (Math.floor(Math.random() * (b - a + 1)) + a);
+	return parseInt(Math.seededRandom(a-1, b+1));
 }
 
 function cleanUp(){
@@ -1957,7 +2178,7 @@ function download(filename, text) {
 
 function parseData(){
 	fileData = "=========Data Log=========\n"
-	for(var i = 0; i < 5; i++){
-		fileData = fileData + " " + rollback[i] + " " + playtime[i] + "\n";
+	for(var i = 0; i < 1; i++){
+		fileData = fileData + "Rollbacks: " + rollback[i] + " Latency: " + latency[i] + " InputNum: " + inputNum[i] + " Playtime: " + playtime[i] + "\n";
 	}
 }
