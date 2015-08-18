@@ -44,7 +44,7 @@ strategies[2] = "hints";
 strategies[3] = "latehints";
 strategies[4] = "eventual";
 
-var strategy = strategies[1]; // using hints
+var strategy = strategies[0]; // using hints
 
 var round = 1;
 	
@@ -62,7 +62,7 @@ var file_data;
 
 /* seeded random method so that game can be replayed */
 // the initial seed
-Math.seed = 6;
+Math.seed = 2048;
  
 // in order to work 'Math.seed' must NOT be undefined,
 // so in any case, you HAVE to provide a Math.seed
@@ -331,12 +331,12 @@ function GameUI (myCharacter) {
 			}
 			round++;
 			if(round==2){
-            	alert("All Finished, thanks!");
-				parseData();
-				download("result.log", fileData);
+            	alert("All Finished, thanks!" + "\nRollbacks: " + rollback[0] + "\n Latency: " + latency[0] + "\n InputNum: " + inputNum[0] + "\n Playtime: " + playtime[0]);
+				//parseData();
+				//download("result.log", fileData);
 				//window.close();// when experient finished, will close the window
              }
-            alert("Game Over! Round " + round);
+            //alert("Game Over! Round " + round);
             strategy = strategies[round-1];
 			cleanUp();
             setTimeout(playGame(), 8000);
@@ -357,14 +357,14 @@ function GameUI (myCharacter) {
 				} 
                 round++;
                 if(round==2){
-                	alert("All Finished, thanks!");
+            	alert("All Finished, thanks!" + "\nRollbacks: " + rollback[0] + "\n Latency: " + latency[0] + "\n InputNum: " + inputNum[0] + "\n Playtime: " + playtime[0]);
 //					var blob = new Blob(["Hello, world!"], {type: "text/plain;charset=utf-8"});
 //					saveAs(blob, "result.txt");
-					parseData();
-					download("result.log", fileData);//+ death_time);
+					//parseData();
+					//download("result.log", fileData);//+ death_time);
 					//window.close();// when experient finished, will close the window
                 }
-                alert("You Won! Round " + round);
+                //alert("You Won! Round " + round);
 //			    setTimeout( function(){mainPlayer.cleanUp();}, 0);
                 strategy = strategies[round-1];
 			 	cleanUp();
@@ -798,6 +798,37 @@ function GameUI (myCharacter) {
 		return true;
 	};
 
+	// === testMove === //
+	// test if the input coordinate can move. If overlapping with anyone,
+	// return false
+
+	this.testMove = function(key, x, y){
+		var mcharacter = {
+            x: x,
+            y: y,
+            image: images[key]
+        };
+
+		// check if overlapping with anyone
+		for(k in this.playerStates){
+			if (k == key || k == "gApple" || k == "yApple") {
+                continue;
+            }
+
+            var kcharacter = {
+                x: this.playerStates[k].x,
+                y: this.playerStates[k].y,
+                image: images[k]
+            };
+
+			if (isOverlapping(mcharacter, kcharacter) && this.playerStates[k].heartsNum > 0) {
+                return false;
+            }
+		}
+
+		return true;
+	};
+
 	this.moveCharacter = function(key, direction) {
 		switch(direction) {
 			case 38: //up
@@ -965,6 +996,10 @@ function GameUI (myCharacter) {
 			}
 		}
 */
+		// stop the game if already dead
+		if(this.myCharacter == "elephant" && other.playerStates["elephant"].heartsNum <= 0){
+			this.checkEnd(); 
+		}
 		// playerStates
 		var checked = false;	// used for collecting data
 		for(k in this.playerStates){ // x: 0, y: 0, yBulletsNum: 3, gBulletsNum: 2, heartsNum: 5
@@ -1261,12 +1296,15 @@ function GameUI (myCharacter) {
 
 	// for the main actor
 	this.MAI_move = function(){
-		if(this.playerStates[this.myCharacter].heartsNum <= 0 ) return;
+//		if(this.playerStates[this.myCharacter].heartsNum <= 0 ) ;
+		inputNum[round-1] += 1;	// the input number
 		if(this.playerStates[this.myCharacter].gBulletsNum > 0 || this.playerStates[this.myCharacter].yBulletsNum > 0){		// if has bullet, kill others
-			var judge;
+			var judge = [];
 			var victim;
 			for(k in this.playerStates){
 				if(k != "elephant" && k != "yApple" && k != "gApple"){
+					if(genRandom(0,3)==0)
+						continue;
 					judge = this.cankill(this.myCharacter, k );
 					if(judge != 0){
 						victim = k;
@@ -1280,11 +1318,25 @@ function GameUI (myCharacter) {
 				victim = this.getClosest(); // get the closest victim
 				this.AI_chase(victim);
 			} else if(judge[0] == 1){ // can horizon kill
-				this.localbuff(0, this.myCharacter, judge[1]); //fireGreenBomb(this.myCharacter, judge[1]);
+				switch(genRandom(0,3)){
+					case 0:
+						this.AI_runAway(victim);
+					break;
+					default:
+						this.localbuff(0, this.myCharacter, judge[1]); //fireGreenBomb(this.myCharacter, judge[1]);
 	//			setTimeout(this.localbuff(0, this.myCharacter, judge[1]), 500); //fireGreenBomb(this.myCharacter, judge[1]);
+					break;
+				}
 			} else { // can vertical kill
-				this.localbuff(1, this.myCharacter, judge[1]); //fireYellowBomb(this.myCharacter, judge[1]);
+				switch(genRandom(0,3)){
+					case 0:
+						this.AI_runAway(victim);
+					break;
+					default:
+						this.localbuff(1, this.myCharacter, judge[1]); //fireYellowBomb(this.myCharacter, judge[1]);
 //				setTimeout(this.localbuff(1, this.myCharacter, judge[1]), 500); //fireYellowBomb(this.myCharacter, judge[1]);
+					break;
+				}
 			}
 
 		} else {			// if has no bullet, if has apples, chase; if no apples, avoid
@@ -1301,12 +1353,13 @@ function GameUI (myCharacter) {
 
 	// return the closest enemy
 	this.getClosest = function(){
-		var victim;
+		var victim = "bee";
 		var dist = 999999;
 
 		for(k in this.playerStates){
-			if(k == this.myCharacter)
+			if(k == this.myCharacter || k == "gApple" || k == "yApple")
 				continue;
+			if(genRandom(0,4) == 0) continue;
 			if(dist > Math.abs(this.playerStates[this.myCharacter].x - this.playerStates[k].x)){
 				victim = k;
 				dist = Math.abs(this.playerStates[this.myCharacter].x - this.playerStates[k].x);
@@ -1351,9 +1404,52 @@ function GameUI (myCharacter) {
 */
 
 		// handle can't move situation first
-		
+		if(this.myCharacter=="elephant"){ // handle the elephant situation with more smartness
+			var canMove = true;
+			var dir;
+			var times;
+			if(Math.abs(x_diff) > Math.abs(y_diff)){
+            	if(x_diff > 0){
+					if(this.testMove("elephant", this.playerStates["elephant"].x-moveBy, this.playerStates["elephant"].y)==true){
+	                	this.localbuff(2, this.myCharacter, 37);
+					} else {
+						canMove = false;
+						dir = 39;
+					}
+                } else {
+					if(this.testMove("elephant", this.playerStates["elephant"].x+moveBy, this.playerStates["elephant"].y)==true){
+                		this.localbuff(2, this.myCharacter, 39);
+					} else {
+						canMove = false;
+						dir = 37;
+					}
+                }
+            } else {
+                if(y_diff > 0){
+					if(this.testMove("elephant", this.playerStates["elephant"].x, this.playerStates["elephant"].y-moveBy)==true){
+	                	this.localbuff(2, this.myCharacter, 38);
+					} else {
+						canMove = false;
+						dir = 40;
+					}
 
-		// the x direction situation
+                } else {
+					if(this.testMove("elephant", this.playerStates["elephant"].x, this.playerStates["elephant"].y+moveBy)==true){
+                		this.localbuff(2, this.myCharacter, 40);
+					} else {
+						canMove = false;
+						dir = 38;
+					}
+               	}
+            }
+
+			if( canMove == false ){
+				var times = genRandom(1,3);
+				for(i = 0; i < times; i++)
+					this.localbuff(2, this.myCharacter, dir);
+			}
+		
+		} else {// the x direction situation
 		switch(genRandom(0,5)){
 			case 0: // the movement situation(chase)
 				if(x_bomb_diff > y_bomb_diff){
@@ -1375,9 +1471,9 @@ function GameUI (myCharacter) {
 						break;
 						default: // move x_direction
 							if(x_diff > 0){
-								this.localbuff(2, this,myCharacter, 37);
+								this.localbuff(2, this.myCharacter, 37);
 							} else {
-								this.localbuff(2, this,myCharacter, 39);
+								this.localbuff(2, this.myCharacter, 39);
 							}
 						break;
 					}
@@ -1400,16 +1496,16 @@ function GameUI (myCharacter) {
                         break;
                         default: // move y_direction
                             if(y_diff > 0){
-                                this.localbuff(2, this,myCharacter, 38);
+                                this.localbuff(2, this.myCharacter, 38);
                             } else {
-                                this.localbuff(2, this,myCharacter, 40);
+                                this.localbuff(2, this.myCharacter, 40);
                             }
                         break;
                     } 
 				}
 			break;
 			default: // directly chase the victim
-				if(x_diff > y_diff){
+				if(Math.abs(x_diff) > Math.abs(y_diff)){
 					if(x_diff > 0){
 						this.localbuff(2, this.myCharacter, 37);
 					} else {
@@ -1423,6 +1519,7 @@ function GameUI (myCharacter) {
 					}
 				}
 			break;
+		}
 		}
 
 		// see if can horizontally kill
@@ -1878,10 +1975,10 @@ function playGame() {
 	setInterval(genApple, 10000);
 
 	// start AIs
-	setInterval(function(){ birdPlayer.AI_move(); }, genRandom(300, 500));
-	setInterval(function(){ catPlayer.AI_move(); }, genRandom(300, 500));
-	setInterval(function(){ beePlayer.AI_move(); }, genRandom(300, 500));
-	setInterval(function(){ mainPlayer.MAI_move(); }, genRandom(200, 300));
+	setInterval(function(){ birdPlayer.AI_move(); }, genRandom(150, 500));
+	setInterval(function(){ catPlayer.AI_move(); }, genRandom(150, 500));
+	setInterval(function(){ beePlayer.AI_move(); }, genRandom(150, 500));
+	setInterval(function(){ mainPlayer.MAI_move(); }, genRandom(150, 500));
 
 	// refresh with interval
 /*	setInterval(function(){ synchAck(mainack);}, 100);
@@ -1907,12 +2004,13 @@ function timer(){
 //		alert("Finished");
 		round++;
         if(round==2){
-        	alert("All Finished, thanks!");
-			parseData();
-			download("result.log", fileData); //+ death_time);
+        	//alert("All Finished, thanks!");
+            	alert("All Finished, thanks!" + "\nRollbacks: " + rollback[0] + "\n Latency: " + latency[0] + "\n InputNum: " + inputNum[0] + "\n Playtime: " + playtime[0]);
+			//parseData();
+			//download("result.log", fileData); //+ death_time);
             //window.close();// when experient finished, will close the window
         }
-        alert("Time Up! Round " + round);
+        //alert("Time Up! Round " + round);
         strategy = strategies[round-1];
         cleanUp();
         setTimeout(playGame(), 8000);
